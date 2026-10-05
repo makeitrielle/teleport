@@ -27,7 +27,7 @@ async function sendAccountEmail({ to, subject, text, html }) {
 function accountLink(path, token, email) {
   // Use the deployed passenger site when APP_URL is not configured in Render.
   // Keeping localhost as the fallback sends production users to an unusable link.
-  const base = (process.env.APP_URL || "https://tele-port-ecru.vercel.app").replace(/\/$/, "");
+  const base = (process.env.APP_URL || "https://www.teleport-app.online").replace(/\/$/, "");
   return `${base}/?${path}=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
 }
 
