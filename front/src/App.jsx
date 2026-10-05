@@ -1015,31 +1015,90 @@ function NotifScreen({ notifications }) {
   );
 }
 
-function ProfileScreen({ passengerName, onLogout, previewMode }) {
+function ProfileScreen({ passengerName, onLogout, previewMode, myTicket, onScanTicket }) {
+  const [section, setSection] = useState("profile");
+  const initials = (passengerName || "Passenger").trim().split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
   const menu = [
-    { label: "My bookings", icon: <ClipboardList size={17} /> },
-    { label: "Payment methods", icon: <Bus size={17} /> },
-    { label: "Help center", icon: <Shield size={17} /> },
+    { id: "bookings", label: "My bookings", icon: <ClipboardList size={17} /> },
+    { id: "payments", label: "Payment methods", icon: <Bus size={17} /> },
+    { id: "help", label: "Help center", icon: <Shield size={17} /> },
   ];
+
+  if (section !== "profile") {
+    const title = section === "bookings" ? "My bookings" : section === "payments" ? "Payment methods" : "Help center";
+    return (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <PassengerHeader title={title} onBack={() => setSection("profile")} />
+        <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+          {section === "bookings" && (myTicket ? (
+            <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 18, padding: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <div style={{ fontWeight: 700, color: C.text }}>Jasper Jean ticket</div>
+                <span style={{ color: C.success, background: "#E8F9EE", borderRadius: 999, padding: "5px 9px", fontSize: 11, fontWeight: 700 }}>Connected</span>
+              </div>
+              <div style={{ color: C.sub, fontSize: 12, marginTop: 5 }}>Ticket {myTicket.code || "—"}</div>
+              <div style={{ color: C.text, fontSize: 13, marginTop: 14 }}>{myTicket.from || "Boarding point"} → {myTicket.dropoff || myTicket.busRouteTo || "Destination"}</div>
+              <div style={{ color: C.sub, fontSize: 12, marginTop: 6 }}>{myTicket.busName || myTicket.busNumber || "Bus"} · {myTicket.standing || myTicket.seat === "Standing" ? "Standing" : `Seat ${myTicket.seat ?? "—"}`}</div>
+              <div style={{ color: C.sub, fontSize: 12, marginTop: 4 }}>Fare: Php {Number(myTicket.fare || 0).toFixed(2)}</div>
+              <button onClick={onScanTicket} style={{ width: "100%", marginTop: 14, background: C.orange, color: "#fff", border: 0, borderRadius: 12, padding: 12, fontWeight: 700, cursor: "pointer" }}>Open ticket and live status</button>
+            </div>
+          ) : (
+            <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 18, padding: 22, textAlign: "center" }}>
+              <ClipboardList size={28} color={C.orange} />
+              <div style={{ color: C.text, fontWeight: 700, marginTop: 10 }}>No ticket connected yet</div>
+              <div style={{ color: C.sub, fontSize: 12.5, marginTop: 6 }}>Scan the QR code printed on your Jasper Jean ticket to connect it to live bus updates.</div>
+              <button onClick={onScanTicket} style={{ marginTop: 14, background: C.orange, color: "#fff", border: 0, borderRadius: 12, padding: "11px 16px", fontWeight: 700, cursor: "pointer" }}>Scan or connect a ticket</button>
+            </div>
+          ))}
+
+          {section === "payments" && (
+            <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 18, padding: 18 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <IconBadge icon={<Bus />} bg={C.orangeSoft} color={C.orangeDeep} />
+                <div><div style={{ color: C.text, fontWeight: 700 }}>Pay at the kiosk</div><div style={{ color: C.sub, fontSize: 12, marginTop: 3 }}>Cash payment</div></div>
+              </div>
+              <div style={{ color: C.subDark, fontSize: 12.5, lineHeight: 1.55, marginTop: 14 }}>Online card payments and saved cards are not enabled. Do not enter or send card details in this app. Pay for your ticket at the kiosk.</div>
+            </div>
+          )}
+
+          {section === "help" && <>
+            {[
+              ["How do I connect a ticket?", "Open My bookings and choose Scan or connect a ticket. Allow camera access, then point your camera at the ticket QR code. You can also type the ticket code."],
+              ["Where can I see my bus ETA?", "After connecting your ticket, open the ticket screen or Maps to view bus status and estimated arrival."],
+              ["What if camera access is blocked?", "Open the site in Safari or Chrome over HTTPS, allow camera access in browser settings, and try again. You can enter the QR value manually."],
+              ["Can I ride standing?", "Standing tickets are issued by the kiosk when no seats are available, subject to the operator's rules."],
+            ].map(([question, answer]) => (
+              <details key={question} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14, padding: 14 }}>
+                <summary style={{ cursor: "pointer", color: C.text, fontWeight: 700, fontSize: 13 }}>{question}</summary>
+                <div style={{ color: C.subDark, fontSize: 12.5, lineHeight: 1.55, marginTop: 9 }}>{answer}</div>
+              </details>
+            ))}
+            <button onClick={onScanTicket} style={{ background: C.orange, color: "#fff", border: 0, borderRadius: 12, padding: 12, fontWeight: 700, cursor: "pointer" }}>Go to ticket scanner</button>
+          </>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
       <PassengerHeader />
       <div style={{ padding: "20px 18px", display: "flex", alignItems: "center", gap: 14 }}>
         <div style={{ width: 56, height: 56, borderRadius: "50%", background: C.orangeSoft, display: "flex",
           alignItems: "center", justifyContent: "center", color: C.orangeDeep, fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 20 }}>
-          {passengerName.split(" ").map((p) => p[0]).join("")}
+          {initials}
         </div>
         <div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 17, color: C.text }}>{passengerName}</div>
+          <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 17, color: C.text }}>{passengerName || "Passenger"}</div>
           <div style={{ fontSize: 12.5, color: C.sub }}>Passenger account</div>
         </div>
       </div>
       <div style={{ padding: "0 14px", display: "flex", flexDirection: "column", gap: 10 }}>
         {menu.map((m) => (
-          <div key={m.label} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14,
-            padding: "13px 16px", display: "flex", alignItems: "center", gap: 12, color: C.text, fontSize: 13.5, fontWeight: 600 }}>
+          <button key={m.id} onClick={() => setSection(m.id)} style={{ width: "100%", textAlign: "left", background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14,
+            padding: "13px 16px", display: "flex", alignItems: "center", gap: 12, color: C.text, fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>
             {m.icon} {m.label} <span style={{ marginLeft: "auto" }}><ChevronRight size={16} color={C.sub} /></span>
-          </div>
+          </button>
         ))}
         <button onClick={onLogout} style={{ marginTop: 8, background: "#fff", border: `1px solid ${C.booked}`,
           borderRadius: 14, padding: "13px 16px", display: "flex", alignItems: "center", gap: 12, color: C.booked,
@@ -1056,6 +1115,7 @@ function PassengerApp({ shared, onLogout, passengerName, previewMode }) {
   const [tab, setTab] = useState("home");
   const [screen, setScreen] = useState(() => new URLSearchParams(window.location.search).has("ticket") ? "ticket" : "home");
   function goto(s) { setScreen(s); }
+  function openTicketScanner() { setTab("home"); setScreen("ticket"); }
 
   let body;
   if (tab === "home") {
@@ -1066,7 +1126,8 @@ function PassengerApp({ shared, onLogout, passengerName, previewMode }) {
     else body = <PassengerHome buses={buses} goto={goto} passengerName={passengerName} myTicket={myTicket} />;
   } else if (tab === "activity") body = <ActivityScreen activity={activity} />;
   else if (tab === "notif") body = <NotifScreen notifications={notifications} />;
-  else body = <ProfileScreen passengerName={passengerName} onLogout={onLogout} previewMode={previewMode} />;
+  else body = <ProfileScreen passengerName={passengerName} onLogout={onLogout} previewMode={previewMode}
+    myTicket={myTicket} onScanTicket={openTicketScanner} />;
 
   return (
     <div className="dashboardShell">

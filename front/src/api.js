@@ -57,13 +57,12 @@ export const api = {
   passengerSignup: (data) => request("/passengers/signup", { method: "POST", body: JSON.stringify(data) }),
   passengerLogin: (email, password) =>
     request("/passengers/login", { method: "POST", body: JSON.stringify({ email, password }) }),
-
+  passengerVerifyEmail: (token) =>
+    request("/passengers/verify-email", { method: "POST", body: JSON.stringify({ token }) }),
   passengerForgotPassword: (email) =>
-  request("/passengers/forgot-password", {
-    method: "POST",
-    body: JSON.stringify({ email }),
-  }),
-
+    request("/passengers/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
+  passengerResetPassword: (token, password) =>
+    request("/passengers/reset-password", { method: "POST", body: JSON.stringify({ token, password }) }),
   // ---- tickets ----
   getTickets: (params = {}) => {
     const qs = new URLSearchParams(params).toString();
