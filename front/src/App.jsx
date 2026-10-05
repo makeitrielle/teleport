@@ -4,7 +4,7 @@ import {
   Plus, Trash2, Pencil, LogOut, Navigation, Users, Route as RouteIcon,
   LayoutDashboard, ChevronRight, Shield, Monitor, Smartphone, X, Radio,
   Clock, TrendingUp, Armchair, Save, PlayCircle, StopCircle, AlertTriangle,
-  Wifi, RefreshCw, Ticket, QrCode, ScanLine, Check, Eye, EyeOff, UserPlus, LogIn
+  Wifi, RefreshCw, Ticket, QrCode, ScanLine, Check, Eye, EyeOff, UserPlus, LogIn, Mail
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from "react-leaflet";
@@ -342,9 +342,9 @@ const seedAdmins = [
 ];
 
 const seedPassengers = [
-  { id: 1, name: "Ana Reyes", email: "ana@example.com", phone: "0917-000-1111", trips: 14 },
-  { id: 2, name: "Marco Dela Cruz", email: "marco@example.com", phone: "0917-222-3333", trips: 6 },
-  { id: 3, name: "Liza Uy", email: "liza@example.com", phone: "0918-444-5555", trips: 22 },
+  { id: 1, name: "Ana Reyes", email: "ana@example.com", trips: 14 },
+  { id: 2, name: "Marco Dela Cruz", email: "marco@example.com", trips: 6 },
+  { id: 3, name: "Liza Uy", email: "liza@example.com", trips: 22 },
 ];
 
 const seedNotifications = [
@@ -418,33 +418,38 @@ function TicketCard({ ticket, dark }) {
   const issuedAt = new Date(issued);
   const dateText = issuedAt.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "2-digit" });
   const timeText = issuedAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-  const labelStyle = { fontSize: 10, color: "#777", textTransform: "uppercase", letterSpacing: ".09em" };
-  const valueStyle = { fontSize: 13, color: "#171717", fontWeight: 700, overflowWrap: "anywhere" };
-  const rowStyle = { display: "grid", gridTemplateColumns: "82px minmax(0,1fr)", gap: 8, padding: "6px 0" };
+  const labelStyle = { fontSize: 11, color: "#252525", whiteSpace: "nowrap" };
+  const valueStyle = { fontSize: 12, color: "#171717", fontWeight: 600, overflowWrap: "anywhere" };
+  const rowStyle = { display: "grid", gridTemplateColumns: "112px minmax(0,1fr)", gap: 6, padding: "3px 0" };
+  const separator = "*".repeat(38);
   return (
-    <div className="ticket-print-card" style={{ width: "min(100%, 340px)", margin: "0 auto", padding: "18px 20px 16px",
+    <div className="ticket-print-card" style={{ width: "min(100%, 340px)", margin: "0 auto", padding: "16px 15px 14px",
       color: "#171717", background: "#fff", border: "1px solid #dedbd5", boxShadow: "0 8px 24px rgba(0,0,0,.12)",
       fontFamily: "'Courier New', monospace" }}>
-      <div style={{ textAlign: "center", borderBottom: "1px dashed #aaa", paddingBottom: 12, marginBottom: 10 }}>
-        <div style={{ color: C.orangeDeep, fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 25, letterSpacing: ".06em" }}>JASPER JEAN</div>
-        <div style={{ fontSize: 10, letterSpacing: ".2em", marginTop: 2 }}>BUS SERVICES</div>
-        <div style={{ fontWeight: 700, fontSize: 12, marginTop: 10 }}>PASSENGER TICKET</div>
+      <div style={{ textAlign: "center", paddingBottom: 8 }}>
+        <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: ".02em" }}>JASPER JEAN</div>
+        <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>BUS LINER · PASSENGER TICKET</div>
       </div>
-      <div style={rowStyle}><span style={labelStyle}>Vehicle</span><span style={valueStyle}>{ticket.busName || "Jasper Jean Bus"}</span></div>
-      <div style={rowStyle}><span style={labelStyle}>Date / time</span><span style={valueStyle}>{dateText} · {timeText}</span></div>
-      <div style={rowStyle}><span style={labelStyle}>From</span><span style={valueStyle}>{ticket.from || "Boarding point"}</span></div>
-      <div style={rowStyle}><span style={labelStyle}>To</span><span style={valueStyle}>{ticket.dropoff || "—"}</span></div>
-      <div style={rowStyle}><span style={labelStyle}>{ticket.standing || ticket.seat === "Standing" ? "Ride type" : "Seat"}</span>
-        <span style={valueStyle}>{ticket.standing || ticket.seat === "Standing" ? "STANDING" : ticket.seat}</span></div>
-      <div style={{ borderTop: "1px dashed #aaa", marginTop: 9, paddingTop: 12, textAlign: "center" }}>
-        <div style={{ fontSize: 10, color: "#555", marginBottom: 3 }}>TICKET NO.</div>
-        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".06em", overflowWrap: "anywhere" }}>{ticket.code}</div>
-        <div style={{ width: 144, height: 144, background: "#fff", margin: "10px auto 8px", display: "grid", placeItems: "center" }}>
-          <img src={qrUrl(ticketLink(ticket.code), 280)}
-            alt="Ticket QR code" width={144} height={144} style={{ display: "block", imageRendering: "pixelated" }} />
-        </div>
-        <div style={{ fontSize: 10, lineHeight: 1.5 }}>Scan QR to connect to live bus ETA<br />Keep this ticket during your trip</div>
+      <div aria-hidden="true" style={{ whiteSpace: "nowrap", overflow: "hidden", fontSize: 10, lineHeight: 1.5 }}>{separator}</div>
+      <div style={rowStyle}><span style={labelStyle}>Route:</span><span style={valueStyle}>{ticket.from || "Boarding point"} - {ticket.routeTo || ticket.busRouteTo || ticket.dropoff || "—"}</span></div>
+      <div style={rowStyle}><span style={labelStyle}>Bus Number:</span><span style={valueStyle}>{ticket.busNumber || ticket.busId || ticket.busName || "—"}</span></div>
+      <div style={rowStyle}><span style={labelStyle}>Date:</span><span style={valueStyle}>{dateText} {timeText}</span></div>
+      <div style={rowStyle}><span style={labelStyle}>Driver:</span><span style={valueStyle}>{ticket.driver || "—"}</span></div>
+      <div style={rowStyle}><span style={labelStyle}>Passenger Type:</span><span style={valueStyle}>REGULAR</span></div>
+      <div style={rowStyle}><span style={labelStyle}>Ride:</span><span style={valueStyle}>{ticket.standing || ticket.seat === "Standing" ? "STANDING" : `SEAT ${ticket.seat ?? "—"}`}</span></div>
+      <div style={rowStyle}><span style={labelStyle}>From:</span><span style={valueStyle}>{ticket.from || "Boarding point"}</span></div>
+      <div style={rowStyle}><span style={labelStyle}>To:</span><span style={valueStyle}>{ticket.dropoff || "—"}</span></div>
+      <div aria-hidden="true" style={{ whiteSpace: "nowrap", overflow: "hidden", fontSize: 10, lineHeight: 1.5, marginTop: 2 }}>{separator}</div>
+      <div style={{ textAlign: "center", fontSize: 11, margin: "5px 0" }}>TICKET NO. {ticket.code}</div>
+      <div style={{ textAlign: "center", fontSize: 19, fontWeight: 700, margin: "6px 0" }}>
+        Php {Number(ticket.fare || 0).toFixed(2)}
       </div>
+      <div aria-hidden="true" style={{ whiteSpace: "nowrap", overflow: "hidden", fontSize: 10, lineHeight: 1.5 }}>{separator}</div>
+      <div style={{ width: 144, height: 144, background: "#fff", margin: "7px auto 5px", display: "grid", placeItems: "center" }}>
+        <img src={qrUrl(ticketLink(ticket.code), 280)} alt="Ticket QR code" width={144} height={144}
+          style={{ display: "block", imageRendering: "pixelated" }} />
+      </div>
+      <div style={{ fontSize: 10, lineHeight: 1.45, textAlign: "center" }}>Scan QR for bus ETA and seat availability<br />Powered by Jasper Jean</div>
     </div>
   );
 }
@@ -822,7 +827,8 @@ function TicketScanScreen({ buses, tickets, setTickets, myTicket, setMyTicket, g
           const busId = String(raw.busId);
           const busData = buses.find((b) => String(b.id) === busId);
           const stopIndex = (busData?.stops || []).findIndex((s) => (typeof s === "string" ? s : s.name) === raw.to);
-          found = { id: String(raw._id || raw.id), code: raw.qrCode, busId, busName: busData?.name || "Bus", from: raw.from,
+          found = { id: String(raw._id || raw.id), code: raw.qrCode, busId, busNumber: busData?.busId,
+            busName: busData?.name || "Bus", busRouteTo: busData?.to, driver: busData?.driver, fare: raw.fare, from: raw.from,
             seat: raw.standing ? "Standing" : raw.seatId, standing: raw.standing, dropoff: raw.to,
             issuedAt: raw.createdAt, dropoffIndex: Math.max(0, stopIndex), totalStops: busData?.stops?.length || 1, claimed: true };
         }
@@ -1234,7 +1240,8 @@ function KioskWelcomeScreen({ onBegin }) {
         if (!standing) setBuses((prev) => prev.map((b) => b.id !== bus.id ? b : {
           ...b, seats: b.seats.map((s) => s.id !== seatId ? s : { ...s, status: "booked", updatedAt: Date.now() }),
         }));
-        const ticket = { id: created.id, code: created.qrCode, busId: bus.id, busName: bus.name, from: bus.from, issuedAt: created.createdAt,
+        const ticket = { id: created.id, code: created.qrCode, busId: bus.id, busNumber: bus.busId, busName: bus.name,
+          busRouteTo: bus.to, driver: bus.driver, fare: created.fare, from: bus.from, issuedAt: created.createdAt,
           seat: standing ? "Standing" : seatId, standing, dropoff, dropoffIndex, dropoffLocation, totalStops: bus.stops.length, claimed: false, notified: false };
         setTickets((prev) => [...prev, ticket]);
         addLog(`Ticket ${ticket.code} issued — seat ${seatId} → ${dropoff}`);
@@ -1246,7 +1253,8 @@ function KioskWelcomeScreen({ onBegin }) {
     }
 
     const code = `JJ-${Date.now().toString(36).toUpperCase()}`;
-    const ticket = { id: Date.now(), code, busId: bus.id, busName: bus.name, from: bus.from, issuedAt: Date.now(), seat: standing ? "Standing" : seatId, standing,
+    const ticket = { id: Date.now(), code, busId: bus.id, busNumber: bus.busId, busName: bus.name, busRouteTo: bus.to,
+      driver: bus.driver, fare: bus.fare ?? 0, from: bus.from, issuedAt: Date.now(), seat: standing ? "Standing" : seatId, standing,
       dropoff, dropoffIndex, dropoffLocation, totalStops: bus.stops.length, claimed: false, notified: false };
     if (!standing) setBuses((prev) => prev.map((b) => b.id !== bus.id ? b : {
       ...b, seats: b.seats.map((s) => s.id !== seatId ? s : { ...s, status: "booked", updatedAt: Date.now() }),
@@ -1415,12 +1423,36 @@ function KioskTicketFlow({ bus, issueTicket }) {
   const [standing, setStanding] = useState(false);
   const [dropoffIdx, setDropoffIdx] = useState(null);
   const [dropoffLocation, setDropoffLocation] = useState(null);
+  const [dropoffName, setDropoffName] = useState("");
+  const [lookingUpDropoff, setLookingUpDropoff] = useState(false);
+  const dropoffLookupId = useRef(0);
   const [routeCoords, setRouteCoords] = useState(null);
   const [locationError, setLocationError] = useState("");
   const [ticket, setTicket] = useState(null);
 
   const rows = buildSeatRows(bus.seats);
   const hasAvailableSeat = bus.seats.some((seat) => isSeatSensorOnline(seat) && seat.status !== "booked");
+  async function selectDropoffLocation(location) {
+    setDropoffLocation(location);
+    setDropoffName("Finding place name…");
+    setLookingUpDropoff(true);
+    const lookupId = ++dropoffLookupId.current;
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&lat=${location.lat}&lon=${location.lon}`;
+      const response = await fetch(url, { headers: { "Accept-Language": "en" } });
+      if (!response.ok) throw new Error("Location lookup failed");
+      const result = await response.json();
+      const address = result.address || {};
+      const namedParts = [result.name, address.road, address.neighbourhood, address.suburb, address.city || address.town || address.village]
+        .filter(Boolean).filter((part, index, all) => all.indexOf(part) === index);
+      const placeName = namedParts.length ? namedParts.join(", ") : result.display_name;
+      if (lookupId === dropoffLookupId.current) setDropoffName(placeName || `Route point (${location.lat.toFixed(5)}, ${location.lon.toFixed(5)})`);
+    } catch {
+      if (lookupId === dropoffLookupId.current) setDropoffName(`Route point (${location.lat.toFixed(5)}, ${location.lon.toFixed(5)})`);
+    } finally {
+      if (lookupId === dropoffLookupId.current) setLookingUpDropoff(false);
+    }
+  }
   useEffect(() => {
     let alive = true;
     fetchConfiguredBusRoute(bus).then((route) => { if (alive) setRouteCoords(route.coords); }).catch((err) => { if (alive) setLocationError(err.message); });
@@ -1436,18 +1468,18 @@ function KioskTicketFlow({ bus, issueTicket }) {
         const d = haversineMeters(pos.coords.latitude, pos.coords.longitude, point[0], point[1]);
         if (d < distance) { distance = d; nearest = point; }
       }
-      if (nearest && distance <= 500) setDropoffLocation({ lat: nearest[0], lon: nearest[1] });
+      if (nearest && distance <= 500) selectDropoffLocation({ lat: nearest[0], lon: nearest[1] });
       else setLocationError("You are more than 500 m from this route. Tap a point on the route.");
     }, () => setLocationError("Location permission was denied or unavailable."), { enableHighAccuracy: true, timeout: 10000 });
   }
 
 
-  function reset() { setStep("seat"); setSeatId(null); setStanding(false); setDropoffIdx(null); setDropoffLocation(null); setTicket(null); }
+  function reset() { dropoffLookupId.current += 1; setStep("seat"); setSeatId(null); setStanding(false); setDropoffIdx(null); setDropoffLocation(null); setDropoffName(""); setLookingUpDropoff(false); setTicket(null); }
 
   function confirmSeat() { if (seatId || standing) setStep("dropoff"); }
   async function confirmDropoff() {
-    if (!dropoffLocation) return;
-    const label = "Selected drop-off (" + dropoffLocation.lat.toFixed(5) + ", " + dropoffLocation.lon.toFixed(5) + ")";
+    if (!dropoffLocation || lookingUpDropoff) return;
+    const label = dropoffName || `Route point (${dropoffLocation.lat.toFixed(5)}, ${dropoffLocation.lon.toFixed(5)})`;
     const t = await issueTicket(seatId, label, dropoffIdx, dropoffLocation, standing);
     if (!t) return; // issuing failed; stay on this step so staff can retry
     setTicket(t);
@@ -1529,28 +1561,30 @@ function KioskTicketFlow({ bus, issueTicket }) {
             <div style={{ color: "#fff", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 19 }}>Where are you getting off?</div>
             <div style={{ color: C.subDark, fontSize: 12.5, marginTop: 4 }}>{standing ? "Standing" : `Seat ${seatId}`} · {bus.name}</div>
           </div>
-          <div style={{ color: C.subDark, fontSize: 12, marginBottom: 8 }}>Tap the route to select your drop-off pin. Your location can choose the nearest point on the route.</div>
+          <div style={{ color: C.subDark, fontSize: 12, marginBottom: 8 }}>Tap the exact drop-off point on the route. The ticket will show its place name and save its coordinates.</div>
           <button onClick={useCurrentLocation} style={{ marginBottom: 8, background: C.panel, border: "1px solid #454966", color: "#fff", borderRadius: 10, padding: "9px 12px" }}>Use my current location</button>
           {locationError && <div style={{ color: "#FDBA74", fontSize: 12, marginBottom: 8 }}>{locationError}</div>}
           <div style={{ height: 220, borderRadius: 14, overflow: "hidden", marginBottom: 10 }}>
             {routeCoords && routeCoords.length > 1 ? <MapContainer center={routeCoords[Math.floor(routeCoords.length / 2)]} zoom={12} style={{ width: "100%", height: "100%" }}>
               <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <Polyline positions={routeCoords} pathOptions={{ color: C.orange, weight: 5 }} />
-              <DropoffMapClick coords={routeCoords} onSelect={setDropoffLocation} />
+              <DropoffMapClick coords={routeCoords} onSelect={selectDropoffLocation} />
               {dropoffLocation && <Marker position={[dropoffLocation.lat, dropoffLocation.lon]} />}
             </MapContainer> : <div style={{ height: "100%", display: "grid", placeItems: "center", background: C.panel, color: C.subDark }}>Loading route map...</div>}
           </div>
-          <div style={{ color: dropoffLocation ? "#4ADE80" : C.subDark, fontSize: 12, marginBottom: 18 }}>{dropoffLocation ? "Destination pin selected: " + dropoffLocation.lat.toFixed(5) + ", " + dropoffLocation.lon.toFixed(5) : "No drop-off pin selected"}</div>
+          <div style={{ color: dropoffLocation ? "#4ADE80" : C.subDark, fontSize: 12, lineHeight: 1.5, marginBottom: 18 }}>
+            {dropoffLocation ? <><strong>{lookingUpDropoff ? "Finding place…" : dropoffName}</strong><br />Pin: {dropoffLocation.lat.toFixed(5)}, {dropoffLocation.lon.toFixed(5)}</> : "No drop-off location selected"}
+          </div>
           <div style={{ display: "flex", gap: 10 }}>
             <button onClick={() => setStep("seat")} style={{ flex: 1, background: C.panel2, border: "none", color: "#fff",
               borderRadius: 14, padding: "13px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
               Back
             </button>
-            <button onClick={confirmDropoff} disabled={!dropoffLocation} style={{ flex: 2,
-              background: dropoffLocation ? C.orange : C.panel2, border: "none", color: "#fff", borderRadius: 14,
+            <button onClick={confirmDropoff} disabled={!dropoffLocation || lookingUpDropoff} style={{ flex: 2,
+              background: dropoffLocation && !lookingUpDropoff ? C.orange : C.panel2, border: "none", color: "#fff", borderRadius: 14,
               padding: "13px 0", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 14.5,
-              cursor: dropoffLocation ? "pointer" : "not-allowed" }}>
-              Print ticket
+              cursor: dropoffLocation && !lookingUpDropoff ? "pointer" : "not-allowed" }}>
+              {lookingUpDropoff ? "Finding location…" : "Print ticket"}
             </button>
           </div>
         </div>
@@ -2048,11 +2082,11 @@ function PassengersTab({ passengers }) {
   return (
     <div>
       <div style={{ color: "#fff", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 17, marginBottom: 14 }}>Passengers</div>
-      <TableShell headers={["Name", "Phone", "Trips taken"]}>
+      <TableShell headers={["Name", "Email", "Trips taken"]}>
         {passengers.map((p) => (
           <tr key={p.id}>
             <td style={td}>{p.name}</td>
-            <td style={td}>{p.phone}</td>
+            <td style={td}>{p.email}</td>
             <td style={td}>{p.trips}</td>
           </tr>
         ))}
@@ -2174,13 +2208,14 @@ function AuthInput({ label, ...props }) {
   );
 }
 
-function PassengerAuthScreen({ onLogin, onRegister }) {
+function PassengerAuthScreen({ onLogin, onRegister, onForgotPassword }) {
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState({});
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
 
-  function set(k, v) { setForm((f) => ({ ...f, [k]: v })); setError(""); }
+  function set(k, v) { setForm((f) => ({ ...f, [k]: v })); setError(""); setNotice(""); }
 
   async function submitLogin() {
     if (!form.email || !form.password) { setError("Please enter your email and password."); return; }
@@ -2197,6 +2232,16 @@ function PassengerAuthScreen({ onLogin, onRegister }) {
     const result = await onRegister({ name: form.name, email: form.email, password: form.password });
     setBusy(false);
     if (result?.error) setError(result.error);
+    else { setNotice("Account created. Check your inbox and confirm your email before signing in."); setMode("login"); }
+  }
+
+  async function submitForgotPassword() {
+    if (!form.email) { setError("Enter your email address first."); return; }
+    setBusy(true);
+    const result = await onForgotPassword(form.email);
+    setBusy(false);
+    if (result?.error) setError(result.error);
+    else setNotice(result?.message || "If an account exists, a reset link has been sent.");
   }
 
   return (
@@ -2205,7 +2250,7 @@ function PassengerAuthScreen({ onLogin, onRegister }) {
       <div style={{ width: "100%", maxWidth: 360 }}>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 22 }}><Logo scale={1.1} /></div>
         <div style={{ background: "#fff", borderRadius: 24, padding: 26 }}>
-          <div style={{ display: "flex", background: C.cream, borderRadius: 12, padding: 3, marginBottom: 20 }}>
+          {mode !== "forgot" && <div style={{ display: "flex", background: C.cream, borderRadius: 12, padding: 3, marginBottom: 20 }}>
             <button onClick={() => { setMode("login"); setError(""); }} style={{ flex: 1, padding: "9px 0", borderRadius: 9,
               border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700,
               background: mode === "login" ? C.orange : "transparent", color: mode === "login" ? "#fff" : C.sub }}>
@@ -2216,28 +2261,36 @@ function PassengerAuthScreen({ onLogin, onRegister }) {
               background: mode === "register" ? C.orange : "transparent", color: mode === "register" ? "#fff" : C.sub }}>
               Register
             </button>
-          </div>
+          </div>}
+
+          {mode === "forgot" && <div style={{ fontWeight: 700, color: C.text, marginBottom: 14 }}>Reset your password</div>}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {mode === "register" && (
               <AuthInput label="Full name" placeholder="Juan Dela Cruz" onChange={(e) => set("name", e.target.value)} />
             )}
             <AuthInput label="Email" type="email" placeholder="you@example.com" onChange={(e) => set("email", e.target.value)} />
-            <AuthInput label="Password" type="password" placeholder="••••••••" onChange={(e) => set("password", e.target.value)} />
+            {mode !== "forgot" && <AuthInput label="Password" type="password" placeholder="At least 8 characters" onChange={(e) => set("password", e.target.value)} />}
             {mode === "register" && (
               <AuthInput label="Confirm password" type="password" placeholder="••••••••" onChange={(e) => set("confirm", e.target.value)} />
             )}
           </div>
 
           {error && <div style={{ marginTop: 10, fontSize: 12, color: C.booked }}>{error}</div>}
+          {notice && <div role="status" style={{ marginTop: 10, fontSize: 12, color: C.success }}>{notice}</div>}
 
-          <button onClick={mode === "login" ? submitLogin : submitRegister} disabled={busy} style={{ width: "100%", marginTop: 18,
+          <button onClick={mode === "login" ? submitLogin : mode === "register" ? submitRegister : submitForgotPassword} disabled={busy} style={{ width: "100%", marginTop: 18,
             background: C.orange, border: "none", color: "#fff", borderRadius: 12, padding: "13px 0",
             fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 14.5, cursor: busy ? "default" : "pointer",
             opacity: busy ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            {mode === "login" ? <LogIn size={16} /> : <UserPlus size={16} />}
-            {busy ? "Please wait…" : mode === "login" ? "Log in" : "Create account"}
+            {mode === "login" ? <LogIn size={16} /> : mode === "register" ? <UserPlus size={16} /> : <Mail size={16} />}
+            {busy ? "Please wait…" : mode === "login" ? "Log in" : mode === "register" ? "Create account" : "Send reset link"}
           </button>
+
+          {mode === "login" && <button onClick={() => { setMode("forgot"); setError(""); setNotice(""); }} style={{ width: "100%", marginTop: 10,
+            border: 0, background: "transparent", color: C.orangeDeep, fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Forgot password?</button>}
+          {mode === "forgot" && <button onClick={() => { setMode("login"); setError(""); setNotice(""); }} style={{ width: "100%", marginTop: 10,
+            border: 0, background: "transparent", color: C.orangeDeep, fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Back to sign in</button>}
 
           {mode === "login" && (
             <div style={{ marginTop: 12, fontSize: 11.5, color: C.sub, textAlign: "center" }}>
@@ -2247,6 +2300,56 @@ function PassengerAuthScreen({ onLogin, onRegister }) {
         </div>
 
 
+      </div>
+    </div>
+  );
+}
+
+function PassengerEmailAction({ type, onComplete }) {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get(type === "verify" ? "verify" : "reset") || "";
+  const [busy, setBusy] = useState(type === "verify");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+
+  useEffect(() => {
+    if (type !== "verify") return;
+    if (!token) { setError("This email confirmation link is missing its token."); setBusy(false); return; }
+    api.passengerVerifyEmail(token).then((result) => setMessage(result.message))
+      .catch((err) => setError(err.message)).finally(() => setBusy(false));
+  }, [type, token]);
+
+  async function submitReset() {
+    setError("");
+    if (password.length < 8) { setError("Choose a password with at least 8 characters."); return; }
+    if (password !== confirm) { setError("The passwords do not match."); return; }
+    setBusy(true);
+    try { const result = await api.passengerResetPassword(token, password); setMessage(result.message); }
+    catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: `linear-gradient(180deg, ${C.ink}, #0D0E1E)`, fontFamily: FONT_BODY,
+      display: "grid", placeItems: "center", padding: 24 }}>
+      <div style={{ width: "100%", maxWidth: 380, background: "#fff", borderRadius: 24, padding: 26 }}>
+        <div style={{ textAlign: "center", marginBottom: 18 }}><Logo scale={0.9} /></div>
+        <h2 style={{ color: C.text, fontSize: 19, textAlign: "center" }}>{type === "verify" ? "Confirm your email" : "Choose a new password"}</h2>
+        {type === "reset" && !message && <div style={{ display: "grid", gap: 12 }}>
+          <AuthInput label="New password" type="password" placeholder="At least 8 characters" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <AuthInput label="Confirm new password" type="password" placeholder="Enter it again" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+          <button disabled={busy} onClick={submitReset} style={{ background: C.orange, border: 0, color: "white", borderRadius: 12, padding: 13, fontWeight: 700 }}>
+            {busy ? "Saving…" : "Save new password"}
+          </button>
+        </div>}
+        {busy && type === "verify" && <p style={{ textAlign: "center", color: C.sub }}>Confirming your email…</p>}
+        {message && <p role="status" style={{ textAlign: "center", color: C.success }}>{message}</p>}
+        {error && <p role="alert" style={{ textAlign: "center", color: C.booked }}>{error}</p>}
+        <button onClick={onComplete} style={{ width: "100%", marginTop: 14, background: C.cream, border: 0, color: C.text, borderRadius: 12, padding: 12, fontWeight: 700 }}>
+          Back to sign in
+        </button>
       </div>
     </div>
   );
@@ -2299,7 +2402,7 @@ function StaffLoginScreen({ admins, onKioskLogin, onSuperLogin, onBack }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div>
               <div style={{ color: C.subDark, fontSize: 11.5, marginBottom: 5 }}>Email</div>
-              <InputSm placeholder="admin@tele-port.ph" onChange={(e) => setCreds((c) => ({ ...c, email: e.target.value }))} />
+              <InputSm placeholder="admin@teleport-app.online" onChange={(e) => setCreds((c) => ({ ...c, email: e.target.value }))} />
             </div>
             <div>
               <div style={{ color: C.subDark, fontSize: 11.5, marginBottom: 5 }}>Password</div>
@@ -2330,7 +2433,13 @@ export default function App() {
   }
   const hasTicketLink = new URLSearchParams(window.location.search).has("ticket");
   const [role, setRole] = useState(() => hasTicketLink ? "passenger" : null); // null | 'passenger' | 'admin' | 'super'
-  const [authScreen, setAuthScreen] = useState(() => { const access = new URLSearchParams(window.location.search).get("access"); return access === "staff" ? "staff" : access === "kiosk" ? "kiosk" : "passenger"; });
+  const [authScreen, setAuthScreen] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("verify")) return "verify";
+    if (params.has("reset")) return "reset";
+    const access = params.get("access");
+    return access === "staff" ? "staff" : access === "kiosk" ? "kiosk" : "passenger";
+  });
   const [previewMode, setPreviewMode] = useState(false); // true when super admin opened a view from "App access"
   const [passengerName, setPassengerName] = useState(() => hasTicketLink ? "Passenger" : "");
   // Local-only fallback accounts, used only when the backend is unreachable
@@ -2469,23 +2578,24 @@ export default function App() {
       try {
         const account = withId(await api.passengerSignup({ name, email, password }));
         setPassengers((prev) => [...prev, account]); // so it shows up in Super Admin > Passengers immediately
-        setPassengerName(account.name);
-        setPreviewMode(false);
-        setRole("passenger");
         return { ok: true };
       } catch (err) {
         return { error: err.message };
       }
     }
 
-    if (passengerAccounts.some((a) => a.email.toLowerCase() === email.toLowerCase())) {
-      return { error: "An account with that email already exists." };
-    }
-    setPassengerAccounts((prev) => [...prev, { name, email, password }]);
-    setPassengerName(name);
-    setPreviewMode(false);
-    setRole("passenger");
-    return { ok: true };
+    return { error: "Email confirmation needs the backend and email service to be configured. Please try again when the server is online." };
+  }
+  async function handlePassengerForgotPassword(email) {
+    if (usingMock) return { error: "Password reset needs the backend and email service to be configured." };
+    try { return await api.passengerForgotPassword(email); }
+    catch (err) { return { error: err.message }; }
+  }
+  function finishPassengerEmailAction() {
+    setAuthScreen("passenger");
+    const url = new URL(window.location.href);
+    ["verify", "reset", "email"].forEach((key) => url.searchParams.delete(key));
+    window.history.replaceState({}, "", url.pathname + url.search + url.hash);
   }
   function handlePassengerLogout() {
     setRole(null);
@@ -2553,8 +2663,11 @@ export default function App() {
       )}
 
       {role === null && authScreen === "passenger" && (
-        <PassengerAuthScreen onLogin={handlePassengerLogin}
-          onRegister={handlePassengerRegister} />
+        <PassengerAuthScreen onLogin={handlePassengerLogin} onRegister={handlePassengerRegister}
+          onForgotPassword={handlePassengerForgotPassword} />
+      )}
+      {role === null && (authScreen === "verify" || authScreen === "reset") && (
+        <PassengerEmailAction type={authScreen} onComplete={finishPassengerEmailAction} />
       )}
 
       {role === null && authScreen === "kiosk" && admins[0] && (
