@@ -4,6 +4,7 @@ import Ticket from "../models/Ticket.js";
 import Bus from "../models/Bus.js";
 
 const router = express.Router();
+const passengerTypes = new Set(["regular", "student", "pwd", "senior"]);
 
 router.get("/", async (req, res) => {
   const filter = {};
@@ -17,7 +18,10 @@ router.get("/", async (req, res) => {
 
 // POST /api/tickets - dispense a new ticket (kiosk flow: pick seat -> pick drop-off)
 router.post("/", async (req, res) => {
-  const { busId, passengerId, seatId, standing = false, from, to, fare, dropoffLocation } = req.body;
+  const { busId, passengerId, seatId, standing = false, passengerType = "regular", from, to, fare, dropoffLocation } = req.body;
+  if (!passengerTypes.has(passengerType)) {
+    return res.status(400).json({ error: "Passenger type must be regular, student, pwd, or senior." });
+  }
   const lat = Number(dropoffLocation?.lat);
   const lon = Number(dropoffLocation?.lon);
   if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) {
@@ -45,6 +49,7 @@ router.post("/", async (req, res) => {
   const ticket = await Ticket.create({
     busId,
     passengerId: passengerId || null,
+    passengerType,
     seatId,
     standing,
     from,

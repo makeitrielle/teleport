@@ -4,6 +4,7 @@ const TicketSchema = new mongoose.Schema(
   {
     busId: { type: mongoose.Schema.Types.ObjectId, ref: "Bus", required: true },
     passengerId: { type: mongoose.Schema.Types.ObjectId, ref: "Passenger", default: null },
+    passengerType: { type: String, enum: ["regular", "student", "pwd", "senior"], default: "regular" },
     seatId: { type: Number, default: null },
     standing: { type: Boolean, default: false },
     from: { type: String, required: true },
