@@ -40,7 +40,7 @@ const PORT = process.env.PORT || 4000;
 
 connectDB()
   .then(() => {
-    app.listen(PORT, () => console.log(`[server] listening on http://localhost:${PORT}`));
+    app.listen(PORT, "0.0.0.0", () => console.log(`[server] listening on port ${PORT}`));
   })
   .catch((err) => {
     console.error("[db] connection failed:", err.message);

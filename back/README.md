@@ -19,7 +19,12 @@ seats), routes, admins, passengers, tickets, and notifications.
    ```bash
    cp .env.example .env
    ```
-   Edit `.env` and paste your connection string into `MONGODB_URI`.
+   Edit `.env` and set `MONGODB_URI`, `RESEND_API_KEY`, `EMAIL_FROM`, and `APP_URL`.
+   Verify `teleport-app.online` in Resend before using `auth@teleport-app.online` as
+   the sender. Set `APP_URL` to the public frontend origin (currently
+   `https://tele-port-ecru.vercel.app`) so confirmation and password-reset links
+   return to the deployed app. Change it to `https://teleport-app.online` after
+   that custom domain is connected to the Vercel project.
 
 4. **Seed the database** (optional, but recommended — loads the same demo data the frontend used to have in mock state)
    ```bash

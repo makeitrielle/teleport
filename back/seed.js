@@ -70,9 +70,9 @@ async function seed() {
 
   console.log("[seed] inserting passengers...");
   await Passenger.insertMany([
-    { name: "Ana Reyes", email: "ana@example.com", phone: "0917-000-1111", trips: 14, passwordHash: hashPassword("demo1234") },
-    { name: "Marco Dela Cruz", email: "marco@example.com", phone: "0917-222-3333", trips: 6, passwordHash: hashPassword("password123") },
-    { name: "Liza Uy", email: "liza@example.com", phone: "0918-444-5555", trips: 22, passwordHash: hashPassword("password123") },
+    { name: "Ana Reyes", email: "ana@example.com", trips: 14, passwordHash: hashPassword("demo1234"), emailVerified: true },
+    { name: "Marco Dela Cruz", email: "marco@example.com", trips: 6, passwordHash: hashPassword("password123"), emailVerified: true },
+    { name: "Liza Uy", email: "liza@example.com", trips: 22, passwordHash: hashPassword("password123"), emailVerified: true },
   ]);
 
   console.log("[seed] inserting notifications...");
