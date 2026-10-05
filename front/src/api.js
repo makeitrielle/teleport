@@ -58,6 +58,12 @@ export const api = {
   passengerLogin: (email, password) =>
     request("/passengers/login", { method: "POST", body: JSON.stringify({ email, password }) }),
 
+  passengerForgotPassword: (email) =>
+  request("/passengers/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  }),
+
   // ---- tickets ----
   getTickets: (params = {}) => {
     const qs = new URLSearchParams(params).toString();
