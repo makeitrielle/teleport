@@ -10,6 +10,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { BrowserQRCodeReader } from "@zxing/browser";
 import { api, withId, withIds } from "./api";
 
 /* Route stops are resolved from the bus configuration. Do not hard-code unverified coordinates. */
@@ -853,39 +854,39 @@ function TicketScanScreen({ buses, tickets, setTickets, myTicket, setMyTicket, g
   useEffect(() => {
     if (!cameraOn) return undefined;
     let stopped = false;
-    let stream;
-    let raf;
-    let detector;
+    let controls;
     async function begin() {
       try {
-        if (!("BarcodeDetector" in window)) throw new Error("Camera QR scanning is not supported by this browser. Use a QR scanner or enter the code below.");
-        detector = new window.BarcodeDetector({ formats: ["qr_code"] });
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
-        if (stopped) { stream.getTracks().forEach((track) => track.stop()); return; }
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        const scanFrame = async () => {
-          if (stopped || !videoRef.current) return;
-          try {
-            const codes = await detector.detect(videoRef.current);
-            if (codes.length) {
-              const value = codes[0].rawValue;
-              setQrValue(value);
-              setCameraOn(false);
-              stream?.getTracks().forEach((track) => track.stop());
-              connectRef.current?.(value);
-              return;
-            }
-          } catch { /* keep scanning through transient camera frames */ }
-          raf = requestAnimationFrame(scanFrame);
-        };
-        scanFrame();
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error("Camera access is unavailable. Open this site over HTTPS in Safari or Chrome and allow camera access.");
+        }
+        if (!videoRef.current) return;
+        const reader = new BrowserQRCodeReader();
+        controls = await reader.decodeFromConstraints(
+          { audio: false, video: { facingMode: { ideal: "environment" } } },
+          videoRef.current,
+          (result) => {
+            if (!result || stopped) return;
+            const value = result.getText();
+            setQrValue(value);
+            setCameraOn(false);
+            controls?.stop();
+            connectRef.current?.(value);
+          },
+        );
+        if (stopped) controls.stop();
       } catch (err) {
-        if (!stopped) { setCameraError(err.message || "Unable to access the camera."); setCameraOn(false); }
+        if (!stopped) {
+          const message = err.name === "NotAllowedError" || err.name === "PermissionDeniedError"
+            ? "Camera permission was denied. Allow camera access for this website in your browser settings, then try again."
+            : err.message || "Unable to access the camera. Open the site over HTTPS and allow camera access.";
+          setCameraError(message);
+          setCameraOn(false);
+        }
       }
     }
     begin();
-    return () => { stopped = true; cancelAnimationFrame(raf); stream?.getTracks().forEach((track) => track.stop()); };
+    return () => { stopped = true; controls?.stop(); };
   }, [cameraOn]);
 
   const bus = myTicket ? buses.find((b) => b.id === myTicket.busId) : null;
@@ -1305,7 +1306,7 @@ function KioskWelcomeScreen({ onBegin }) {
       </div>
 
       {mode === "ticket" ? (
-        <KioskTicketFlow bus={bus} issueTicket={issueTicket} />
+        <KioskTicketFlow bus={bus} issueTicket={issueTicket} onFinish={() => setMode("welcome")} />
       ) : (
         <KioskOperatorPanel bus={bus} log={log} toggleTrip={toggleTrip} pingLocation={pingLocation}
           overrideSeat={overrideSeat} runDiagnostics={runDiagnostics} />
@@ -1417,7 +1418,7 @@ function KioskOperatorPanel({ bus, log, toggleTrip, pingLocation, overrideSeat, 
   );
 }
 
-function KioskTicketFlow({ bus, issueTicket }) {
+function KioskTicketFlow({ bus, issueTicket, onFinish }) {
   const [step, setStep] = useState("seat");
   const [seatId, setSeatId] = useState(null);
   const [standing, setStanding] = useState(false);
@@ -1473,8 +1474,6 @@ function KioskTicketFlow({ bus, issueTicket }) {
     }, () => setLocationError("Location permission was denied or unavailable."), { enableHighAccuracy: true, timeout: 10000 });
   }
 
-
-  function reset() { dropoffLookupId.current += 1; setStep("seat"); setSeatId(null); setStanding(false); setDropoffIdx(null); setDropoffLocation(null); setDropoffName(""); setLookingUpDropoff(false); setTicket(null); }
 
   function confirmSeat() { if (seatId || standing) setStep("dropoff"); }
   async function confirmDropoff() {
@@ -1605,9 +1604,9 @@ function KioskTicketFlow({ bus, issueTicket }) {
             color: "#fff", borderRadius: 14, padding: "13px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
             Print ticket
           </button>
-          <button className="ticket-no-print" onClick={reset} style={{ width: "100%", marginTop: 10, background: C.panel2, border: "none",
+          <button className="ticket-no-print" onClick={onFinish} style={{ width: "100%", marginTop: 10, background: C.panel2, border: "none",
             color: "#fff", borderRadius: 14, padding: "13px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
-            Start next ticket
+            Finish
           </button>
         </div>
       )}
