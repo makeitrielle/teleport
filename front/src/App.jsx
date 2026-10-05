@@ -15,6 +15,7 @@ import { api, withId, withIds } from "./api";
 
 /* Route stops are resolved from the bus configuration. Do not hard-code unverified coordinates. */
 const ROUTE_STOPS = [];
+const PASSENGER_TYPES = { regular: "Regular", student: "Student", pwd: "PWD", senior: "Senior" };
 
 // Haversine distance in meters between two lat/lon points.
 function haversineMeters(lat1, lon1, lat2, lon2) {
@@ -436,7 +437,7 @@ function TicketCard({ ticket, dark }) {
       <div style={rowStyle}><span style={labelStyle}>Bus Number:</span><span style={valueStyle}>{ticket.busNumber || ticket.busId || ticket.busName || "—"}</span></div>
       <div style={rowStyle}><span style={labelStyle}>Date:</span><span style={valueStyle}>{dateText} {timeText}</span></div>
       <div style={rowStyle}><span style={labelStyle}>Driver:</span><span style={valueStyle}>{ticket.driver || "—"}</span></div>
-      <div style={rowStyle}><span style={labelStyle}>Passenger Type:</span><span style={valueStyle}>REGULAR</span></div>
+      <div style={rowStyle}><span style={labelStyle}>Passenger Type:</span><span style={valueStyle}>{(PASSENGER_TYPES[ticket.passengerType] || "Regular").toUpperCase()}</span></div>
       <div style={rowStyle}><span style={labelStyle}>Ride:</span><span style={valueStyle}>{ticket.standing || ticket.seat === "Standing" ? "STANDING" : `SEAT ${ticket.seat ?? "—"}`}</span></div>
       <div style={rowStyle}><span style={labelStyle}>From:</span><span style={valueStyle}>{ticket.from || "Boarding point"}</span></div>
       <div style={rowStyle}><span style={labelStyle}>To:</span><span style={valueStyle}>{ticket.dropoff || "—"}</span></div>
@@ -830,7 +831,7 @@ function TicketScanScreen({ buses, tickets, setTickets, myTicket, setMyTicket, g
           const stopIndex = (busData?.stops || []).findIndex((s) => (typeof s === "string" ? s : s.name) === raw.to);
           found = { id: String(raw._id || raw.id), code: raw.qrCode, busId, busNumber: busData?.busId,
             busName: busData?.name || "Bus", busRouteTo: busData?.to, driver: busData?.driver, fare: raw.fare, from: raw.from,
-            seat: raw.standing ? "Standing" : raw.seatId, standing: raw.standing, dropoff: raw.to,
+            seat: raw.standing ? "Standing" : raw.seatId, standing: raw.standing, passengerType: raw.passengerType || "regular", dropoff: raw.to,
             issuedAt: raw.createdAt, dropoffIndex: Math.max(0, stopIndex), totalStops: busData?.stops?.length || 1, claimed: true };
         }
       }
@@ -1290,13 +1291,13 @@ function KioskWelcomeScreen({ onBegin }) {
     addLog("Location ping sent");
   }
 
-  async function issueTicket(seatId, dropoff, dropoffIndex, dropoffLocation, standing = false) {
+  async function issueTicket(seatId, dropoff, dropoffIndex, dropoffLocation, standing = false, passengerType = "regular") {
     if (!bus) return null;
 
     if (!usingMock) {
       try {
         const created = withId(await api.createTicket({
-          busId: bus.id, seatId, standing, from: bus.from, to: dropoff, fare: 0, dropoffLocation,
+          busId: bus.id, seatId, standing, passengerType, from: bus.from, to: dropoff, fare: 0, dropoffLocation,
         }));
         // reflect the now-booked seat locally so the kiosk UI updates immediately
         if (!standing) setBuses((prev) => prev.map((b) => b.id !== bus.id ? b : {
@@ -1304,7 +1305,7 @@ function KioskWelcomeScreen({ onBegin }) {
         }));
         const ticket = { id: created.id, code: created.qrCode, busId: bus.id, busNumber: bus.busId, busName: bus.name,
           busRouteTo: bus.to, driver: bus.driver, fare: created.fare, from: bus.from, issuedAt: created.createdAt,
-          seat: standing ? "Standing" : seatId, standing, dropoff, dropoffIndex, dropoffLocation, totalStops: bus.stops.length, claimed: false, notified: false };
+          seat: standing ? "Standing" : seatId, standing, passengerType, dropoff, dropoffIndex, dropoffLocation, totalStops: bus.stops.length, claimed: false, notified: false };
         setTickets((prev) => [...prev, ticket]);
         addLog(`Ticket ${ticket.code} issued — seat ${seatId} → ${dropoff}`);
         return ticket;
@@ -1316,7 +1317,7 @@ function KioskWelcomeScreen({ onBegin }) {
 
     const code = `JJ-${Date.now().toString(36).toUpperCase()}`;
     const ticket = { id: Date.now(), code, busId: bus.id, busNumber: bus.busId, busName: bus.name, busRouteTo: bus.to,
-      driver: bus.driver, fare: bus.fare ?? 0, from: bus.from, issuedAt: Date.now(), seat: standing ? "Standing" : seatId, standing,
+      driver: bus.driver, fare: bus.fare ?? 0, from: bus.from, issuedAt: Date.now(), seat: standing ? "Standing" : seatId, standing, passengerType,
       dropoff, dropoffIndex, dropoffLocation, totalStops: bus.stops.length, claimed: false, notified: false };
     if (!standing) setBuses((prev) => prev.map((b) => b.id !== bus.id ? b : {
       ...b, seats: b.seats.map((s) => s.id !== seatId ? s : { ...s, status: "booked", updatedAt: Date.now() }),
@@ -1483,6 +1484,7 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
   const [step, setStep] = useState("seat");
   const [seatId, setSeatId] = useState(null);
   const [standing, setStanding] = useState(false);
+  const [passengerType, setPassengerType] = useState("regular");
   const [dropoffIdx, setDropoffIdx] = useState(null);
   const [dropoffLocation, setDropoffLocation] = useState(null);
   const [dropoffName, setDropoffName] = useState("");
@@ -1536,11 +1538,11 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
   }
 
 
-  function confirmSeat() { if (seatId || standing) setStep("dropoff"); }
+  function confirmSeat() { if (seatId || standing) setStep("passenger"); }
   async function confirmDropoff() {
     if (!dropoffLocation || lookingUpDropoff) return;
     const label = dropoffName || `Route point (${dropoffLocation.lat.toFixed(5)}, ${dropoffLocation.lon.toFixed(5)})`;
-    const t = await issueTicket(seatId, label, dropoffIdx, dropoffLocation, standing);
+    const t = await issueTicket(seatId, label, dropoffIdx, dropoffLocation, standing, passengerType);
     if (!t) return; // issuing failed; stay on this step so staff can retry
     setTicket(t);
     setStep("ticket");
@@ -1549,7 +1551,7 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
   return (
     <div style={{ maxWidth: 480, margin: "0 auto", padding: "28px 20px 40px" }}>
       <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 22 }}>
-        {["seat", "dropoff", "ticket"].map((s, i) => (
+        {["seat", "passenger", "dropoff", "ticket"].map((s, i) => (
           <div key={s} style={{ width: 8, height: 8, borderRadius: 999,
             background: step === s ? C.orange : "#3A3D5C" }} />
         ))}
@@ -1615,11 +1617,37 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
         </div>
       )}
 
+      {step === "passenger" && (
+        <div className="jj-fade">
+          <div style={{ textAlign: "center", marginBottom: 18 }}>
+            <div style={{ color: "#fff", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 19 }}>Select passenger type</div>
+            <div style={{ color: C.subDark, fontSize: 12.5, marginTop: 4 }}>{standing ? "Standing" : `Seat ${seatId}`} · Choose the applicable category</div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+            {Object.entries(PASSENGER_TYPES).map(([value, label]) => {
+              const selected = passengerType === value;
+              return <button key={value} type="button" aria-pressed={selected} onClick={() => setPassengerType(value)}
+                style={{ minHeight: 64, borderRadius: 14, border: `1px solid ${selected ? C.yellow : "#454966"}`,
+                  background: selected ? "#3A3D5C" : C.panel, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                {label}{selected ? " ✓" : ""}
+              </button>;
+            })}
+          </div>
+          <div style={{ color: C.subDark, fontSize: 11.5, lineHeight: 1.45, marginBottom: 16 }}>
+            Select the applicable passenger type. The operator must verify eligibility and configure fare discounts before discounted fares are charged.
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={() => setStep("seat")} style={{ flex: 1, background: C.panel2, border: "none", color: "#fff", borderRadius: 14, padding: "13px 0", fontWeight: 700, cursor: "pointer" }}>Back</button>
+            <button onClick={() => setStep("dropoff")} style={{ flex: 2, background: C.orange, border: "none", color: "#fff", borderRadius: 14, padding: "13px 0", fontFamily: FONT_DISPLAY, fontWeight: 700, cursor: "pointer" }}>Continue</button>
+          </div>
+        </div>
+      )}
+
       {step === "dropoff" && (
         <div className="jj-fade">
           <div style={{ textAlign: "center", marginBottom: 18 }}>
             <div style={{ color: "#fff", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 19 }}>Where are you getting off?</div>
-            <div style={{ color: C.subDark, fontSize: 12.5, marginTop: 4 }}>{standing ? "Standing" : `Seat ${seatId}`} · {bus.name}</div>
+            <div style={{ color: C.subDark, fontSize: 12.5, marginTop: 4 }}>{PASSENGER_TYPES[passengerType]} · {standing ? "Standing" : `Seat ${seatId}`} · {bus.name}</div>
           </div>
           <div style={{ color: C.subDark, fontSize: 12, marginBottom: 8 }}>Tap the exact drop-off point on the route. The ticket will show its place name and save its coordinates.</div>
           <button onClick={useCurrentLocation} style={{ marginBottom: 8, background: C.panel, border: "1px solid #454966", color: "#fff", borderRadius: 10, padding: "9px 12px" }}>Use my current location</button>
