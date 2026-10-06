@@ -33,7 +33,7 @@ function connect() {
     try {
       await printTicket(job.ticket);
       socket.send(JSON.stringify({ type: "print:result", jobId: job.jobId, ok: true }));
-      console.log(`[print-agent] Receipt ${job.ticket.ticketNumber} sent to ${process.env.PRINTER_NAME || "XP-58C"}.`);
+      console.log(`[print-agent] Receipt ${job.ticket.ticketNumber} sent to ${process.env.PRINTER_NAME || "XP-58"}.`);
     } catch (error) {
       console.error(`[print-agent] Print failed: ${error.message}`);
       if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "print:result", jobId: job.jobId, ok: false, error: error.message.slice(0, 300) }));

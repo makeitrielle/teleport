@@ -84,11 +84,11 @@ the same Windows computer as the printer; do not run it on Render.
 2. Redeploy the backend so it accepts the agent connection.
 3. On the Windows kiosk, install Node.js 18 or later and the Xprinter 58-series
    driver. Confirm the Windows printer queue name (your screenshot shows
-   `XP-58C`).
+   `XP-58`).
 4. Copy `backend/print-agent/.env.example` to `backend/print-agent/.env`. Set
    `WS_URL` to `wss://YOUR-RENDER-BACKEND.onrender.com/api/printer/agent`, copy
    the exact same `AGENT_SECRET`, and set `PRINTER_NAME` to the Windows queue
-   name. Leave `CUT_AFTER_PRINT=false` unless the XP-58C cutter is enabled.
+   name. Leave `CUT_AFTER_PRINT=false` unless the printer's cutter is enabled.
 5. Open a terminal in `backend` and run `npm install` once. Start the agent by
    double-clicking `backend/print-agent/START-PRINT-AGENT.bat`. Keep that window
    running while the kiosk is in use.

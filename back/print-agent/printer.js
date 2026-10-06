@@ -129,7 +129,7 @@ public static class TeleportRawPrinter {
 
 export async function printTicket(ticket) {
   if (process.platform !== "win32") throw new Error("The Tele-port print agent must run on the Windows kiosk computer.");
-  const printerName = process.env.PRINTER_NAME || "XP-58C";
+  const printerName = process.env.PRINTER_NAME || "XP-58";
   const cutAfterPrint = process.env.CUT_AFTER_PRINT === "true";
   const bytes = makeReceipt(ticket, cutAfterPrint).toString("base64");
   const encodedName = Buffer.from(printerName, "utf8").toString("base64");
