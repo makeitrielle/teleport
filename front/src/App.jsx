@@ -1016,6 +1016,50 @@ function NotifScreen({ notifications }) {
   );
 }
 
+function PwaInstallControl() {
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [installed, setInstalled] = useState(false);
+  const [hint, setHint] = useState("");
+
+  useEffect(() => {
+    const isStandalone = window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone === true;
+    setInstalled(Boolean(isStandalone));
+    const onPrompt = (event) => { event.preventDefault(); setInstallPrompt(event); };
+    const onInstalled = () => { setInstalled(true); setInstallPrompt(null); setHint(""); };
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
+
+  async function install() {
+    setHint("");
+    if (installPrompt) {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice?.outcome === "accepted") setInstalled(true);
+      setInstallPrompt(null);
+      return;
+    }
+    const isAppleMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    setHint(isAppleMobile
+      ? "In Safari, tap Share, then Add to Home Screen."
+      : "Open your browser menu and choose Install app or Add to Home screen.");
+  }
+
+  return <div>
+    <button type="button" onClick={install} disabled={installed} style={{ width: "100%", background: "#fff", border: `1px solid ${C.line}`,
+      borderRadius: 14, padding: "13px 16px", display: "flex", alignItems: "center", gap: 12, color: C.text,
+      fontSize: 13.5, fontWeight: 700, cursor: installed ? "default" : "pointer", opacity: installed ? 0.7 : 1 }}>
+      <Smartphone size={17} /> {installed ? "App installed" : "Install TELE-PORT app"}
+      {!installed && <span style={{ marginLeft: "auto" }}><ChevronRight size={16} color={C.sub} /></span>}
+    </button>
+    {hint && <div role="status" style={{ color: C.subDark, fontSize: 12, lineHeight: 1.5, padding: "8px 4px 0" }}>{hint}</div>}
+  </div>;
+}
+
 function ProfileScreen({ passengerName, onLogout, previewMode, myTicket, onScanTicket }) {
   const [section, setSection] = useState("profile");
   const initials = (passengerName || "Passenger").trim().split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
@@ -1095,6 +1139,7 @@ function ProfileScreen({ passengerName, onLogout, previewMode, myTicket, onScanT
         </div>
       </div>
       <div style={{ padding: "0 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <PwaInstallControl />
         {menu.map((m) => (
           <button key={m.id} onClick={() => setSection(m.id)} style={{ width: "100%", textAlign: "left", background: "#fff", border: `1px solid ${C.line}`, borderRadius: 14,
             padding: "13px 16px", display: "flex", alignItems: "center", gap: 12, color: C.text, fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>
