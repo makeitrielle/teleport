@@ -2,6 +2,9 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { connectDB } from "./db.js";
+import { createServer } from "node:http";
+import printerRoutes from "./routes/printer.js";
+import { attachPrintAgent } from "./printAgent.js";
 
 import busRoutes from "./routes/buses.js";
 import singleBusRoutes from "./routes/bus.js";
@@ -28,6 +31,7 @@ app.use("/api/routes", routeRoutes);
 app.use("/api/admins", adminRoutes);
 app.use("/api/passengers", passengerRoutes);
 app.use("/api/tickets", ticketRoutes);
+app.use("/api/printer", printerRoutes);
 app.use("/api/notifications", notificationRoutes);
 
 // basic error handler
@@ -37,10 +41,12 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 4000;
+const server = createServer(app);
+attachPrintAgent(server);
 
 connectDB()
   .then(() => {
-    app.listen(PORT, "0.0.0.0", () => console.log(`[server] listening on port ${PORT}`));
+    server.listen(PORT, "0.0.0.0", () => console.log(`[server] listening on port ${PORT}`));
   })
   .catch((err) => {
     console.error("[db] connection failed:", err.message);

@@ -42,9 +42,9 @@ async function seed() {
       busId: "BUS-001",
       name: "Bus 1",
       driver: "J. Cruz",
-      from: "Iron District Mall",
-      to: "SM Pala Pala",
-      stops: ["Iron District Mall", "SM Pala Pala"],
+      from: "PITX",
+      to: "SM Pala-Pala",
+      stops: ["PITX", "SM Pala-Pala"],
       totalSeats: 61,
       seats: makeSeats(61, 0),
       progress: 0.32,
@@ -55,7 +55,7 @@ async function seed() {
 
   console.log("[seed] inserting the route...");
   await Route.insertMany([
-    { name: "Iron District Mall - SM Pala Pala", stops: ["Iron District Mall", "SM Pala Pala"] },
+    { name: "PITX ↔ SM Pala-Pala", stops: ["PITX", "SM Pala-Pala"] },
   ]);
 
   console.log("[seed] inserting the kiosk admin (default password: 'password123')...");
@@ -77,8 +77,8 @@ async function seed() {
 
   console.log("[seed] inserting notifications...");
   await Notification.insertMany([
-    { title: "Bus 1 is 5 minutes away", body: "Arriving at SM Pala Pala." },
-    { title: "Fare update", body: "Regular fare is now available for the Iron District Mall - SM Pala Pala." },
+    { title: "Bus 1 is 5 minutes away", body: "Arriving at SM Pala-Pala." },
+    { title: "Fare update", body: "Regular fare is available on the PITX ↔ SM Pala-Pala route." },
   ]);
 
   console.log("[seed] done!");

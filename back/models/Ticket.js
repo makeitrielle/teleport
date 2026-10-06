@@ -16,6 +16,7 @@ const TicketSchema = new mongoose.Schema(
     dropoffAlerted: { type: Boolean, default: false },
     fare: { type: Number, default: 0 },
     qrCode: { type: String, required: true }, // encoded ticket reference string
+    printTokenHash: { type: String, select: false, default: null },
     status: { type: String, enum: ["active", "used", "cancelled"], default: "active" },
   },
   { timestamps: true }

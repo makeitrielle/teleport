@@ -65,8 +65,41 @@ seats), routes, admins, passengers, tickets, and notifications.
 | GET    | `/api/tickets?busId=&passengerId=` | list tickets, optional filters       |
 | POST   | `/api/tickets`                     | dispense a ticket (books the seat)   |
 | PATCH  | `/api/tickets/:id`                 | mark used / cancel (frees the seat)  |
+| GET    | `/api/printer/status`              | check whether the kiosk print agent is connected |
+| POST   | `/api/printer/jobs`                | send a one-time-authorized ticket to the kiosk printer |
 | GET    | `/api/notifications`               | list notifications                   |
 | POST   | `/api/notifications`               | create a notification                |
+
+## Direct XP-58 kiosk printing
+
+The kiosk uses a local Windows print agent so the online app can send a ticket
+to the XP-58 over a secure WebSocket. The agent sends a 58 mm ESC/POS receipt
+through the Windows RAW spooler, avoiding browser page scaling. It must run on
+the same Windows computer as the printer; do not run it on Render.
+
+1. In Render, add `AGENT_SECRET` to the backend service environment. Generate a
+   unique value with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+   Keep this secret out of the frontend and source control. Set `PUBLIC_APP_URL`
+   to the canonical passenger website URL used by ticket QR codes.
+2. Redeploy the backend so it accepts the agent connection.
+3. On the Windows kiosk, install Node.js 18 or later and the Xprinter 58-series
+   driver. Confirm the Windows printer queue name (your screenshot shows
+   `XP-58C`).
+4. Copy `backend/print-agent/.env.example` to `backend/print-agent/.env`. Set
+   `WS_URL` to `wss://YOUR-RENDER-BACKEND.onrender.com/api/printer/agent`, copy
+   the exact same `AGENT_SECRET`, and set `PRINTER_NAME` to the Windows queue
+   name. Leave `CUT_AFTER_PRINT=false` unless the XP-58C cutter is enabled.
+5. Open a terminal in `backend` and run `npm install` once. Start the agent by
+   double-clicking `backend/print-agent/START-PRINT-AGENT.bat`. Keep that window
+   running while the kiosk is in use.
+6. Open `https://YOUR-RENDER-BACKEND.onrender.com/api/printer/status`. It should
+   return `agentConnected: true`. Issue a ticket and choose **Print ticket on
+   XP-58**. If the agent is offline, the kiosk offers Edge printing as fallback.
+
+Ticket creation returns a high-entropy, one-use print authorization. The API
+stores only its hash; the agent connection is separately protected by
+`AGENT_SECRET`. Reprints should use Edge printing or a new ticket rather than
+reuse a consumed authorization.
 
 ## Frontend wiring — what's connected
 

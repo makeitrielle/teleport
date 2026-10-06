@@ -46,6 +46,8 @@ router.post("/", async (req, res) => {
   }
 
   const qrCode = crypto.randomUUID();
+  const printToken = crypto.randomBytes(32).toString("hex");
+  const printTokenHash = crypto.createHash("sha256").update(printToken).digest("hex");
   const ticket = await Ticket.create({
     busId,
     passengerId: passengerId || null,
@@ -57,9 +59,12 @@ router.post("/", async (req, res) => {
     dropoffLocation: normalizedDropoff,
     fare,
     qrCode,
+    printTokenHash,
   });
 
-  res.status(201).json(ticket);
+  const ticketData = ticket.toObject();
+  delete ticketData.printTokenHash;
+  res.status(201).json({ ...ticketData, printToken });
 });
 
 // PATCH /api/tickets/:id - mark used/cancelled
