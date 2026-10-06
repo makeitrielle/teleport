@@ -7,7 +7,7 @@ import {
   Wifi, RefreshCw, Ticket, QrCode, ScanLine, Check, Eye, EyeOff, UserPlus, LogIn, Mail
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { BrowserQRCodeReader } from "@zxing/browser";
@@ -54,6 +54,27 @@ function pointAlongRoute(coords, progress) {
     covered += segLens[i];
   }
   return { point: coords[coords.length - 1], totalMeters: total };
+}
+
+function buildFarePoints(coords, originName, destinationName) {
+  if (!coords || coords.length < 2) return [];
+  const { totalMeters } = pointAlongRoute(coords, 1);
+  const totalKm = totalMeters / 1000;
+  if (!Number.isFinite(totalKm) || totalKm <= 0) return [];
+  const points = [];
+  for (let km = 5; km < totalKm - 0.25; km += 5) {
+    const { point } = pointAlongRoute(coords, km / totalKm);
+    points.push({ id: `km-${km}`, label: `${km} km from ${originName}`, distanceKm: km, location: { lat: point[0], lon: point[1] } });
+  }
+  const end = coords[coords.length - 1];
+  points.push({ id: "destination", label: `${destinationName} · ${totalKm.toFixed(1)} km`, distanceKm: totalKm, location: { lat: end[0], lon: end[1] } });
+  return points;
+}
+
+function calculateFare(passengerType, distanceKm) {
+  const rate = passengerType === "regular" ? 2.45 : 1.96;
+  // LTFRB fare guide: add-on rate per km, rounded to the nearest ₱0.25.
+  return Math.round((rate * Number(distanceKm) + Number.EPSILON) * 4) / 4;
 }
 
 // Fetches the real driving route geometry from OSRM's public demo server
@@ -114,18 +135,6 @@ function FitRouteBounds({ coords }) {
   return null;
 }
 
-function DropoffMapClick({ coords, onSelect }) {
-  useMapEvents({ click(event) {
-    if (!coords || coords.length < 2) return;
-    let nearest = null, distance = Infinity;
-    for (const point of coords) {
-      const d = haversineMeters(event.latlng.lat, event.latlng.lng, point[0], point[1]);
-      if (d < distance) { distance = d; nearest = point; }
-    }
-    if (nearest && distance <= 500) onSelect({ lat: nearest[0], lon: nearest[1] });
-  }});
-  return null;
-}
 /* ---------------------------------- THEME ---------------------------------- */
 
 const C = {
@@ -536,7 +545,7 @@ function TicketCard({ ticket, dark }) {
       {row("Ride:", ticket.standing || ticket.seat === "Standing" ? "STANDING" : `SEAT ${ticket.seat ?? "—"}`)}
       {row("From:", ticket.from || "PITX")}
       {row("To:", ticket.dropoff || "SM Pala-Pala")}
-      {ticket.distance ? row("Distance:", `${ticket.distance} KM`) : null}
+      {ticket.distanceKm ? row("Distance:", `${Number(ticket.distanceKm).toFixed(1)} KM`) : null}
       <div className="ticket-separator" aria-hidden="true" style={{ whiteSpace: "nowrap", overflow: "hidden", fontSize: 10, lineHeight: 1.5, marginTop: 2 }}>{separator}</div>
       <div style={{ textAlign: "center", fontSize: 10, margin: "5px 0", overflowWrap: "anywhere" }}>TICKET NO. {ticket.code}</div>
       <div style={{ textAlign: "center", fontSize: 19, fontWeight: 700, margin: "6px 0" }}>
@@ -1462,13 +1471,13 @@ function KioskWelcomeScreen({ onBegin }) {
     addLog("Location ping sent");
   }
 
-  async function issueTicket(seatId, dropoff, dropoffIndex, dropoffLocation, standing = false, passengerType = "regular") {
+  async function issueTicket(seatId, dropoff, dropoffIndex, dropoffLocation, standing = false, passengerType = "regular", distanceKm, dropoffPointCount) {
     if (!bus) return null;
 
     if (!usingMock) {
       try {
         const created = withId(await api.createTicket({
-          busId: bus.id, seatId, standing, passengerType, from: bus.from, to: dropoff, fare: 0, dropoffLocation,
+          busId: bus.id, seatId, standing, passengerType, from: bus.from, to: dropoff, dropoffLocation, distanceKm,
         }));
         // reflect the now-booked seat locally so the kiosk UI updates immediately
         if (!standing) setBuses((prev) => prev.map((b) => b.id !== bus.id ? b : {
@@ -1477,7 +1486,8 @@ function KioskWelcomeScreen({ onBegin }) {
         const ticket = { id: created.id, code: created.qrCode, busId: bus.id, busNumber: bus.busId, busName: bus.name,
           busRouteTo: bus.to, driver: bus.driver, fare: created.fare, from: bus.from, issuedAt: created.createdAt,
           printToken: created.printToken,
-          seat: standing ? "Standing" : seatId, standing, passengerType, dropoff, dropoffIndex, dropoffLocation, totalStops: bus.stops.length, claimed: false, notified: false };
+          seat: standing ? "Standing" : seatId, standing, passengerType, dropoff, dropoffIndex, dropoffLocation, distanceKm: created.distanceKm,
+          totalStops: dropoffPointCount, claimed: false, notified: false };
         setTickets((prev) => [...prev, ticket]);
         addLog(`Ticket ${ticket.code} issued — seat ${seatId} → ${dropoff}`);
         return ticket;
@@ -1489,8 +1499,8 @@ function KioskWelcomeScreen({ onBegin }) {
 
     const code = `JJ-${Date.now().toString(36).toUpperCase()}`;
     const ticket = { id: Date.now(), code, busId: bus.id, busNumber: bus.busId, busName: bus.name, busRouteTo: bus.to,
-      driver: bus.driver, fare: bus.fare ?? 0, from: bus.from, issuedAt: Date.now(), seat: standing ? "Standing" : seatId, standing, passengerType,
-      dropoff, dropoffIndex, dropoffLocation, totalStops: bus.stops.length, claimed: false, notified: false };
+      driver: bus.driver, fare: calculateFare(passengerType, distanceKm), from: bus.from, issuedAt: Date.now(), seat: standing ? "Standing" : seatId, standing, passengerType,
+      dropoff, dropoffIndex, dropoffLocation, distanceKm, totalStops: dropoffPointCount, claimed: false, notified: false };
     if (!standing) setBuses((prev) => prev.map((b) => b.id !== bus.id ? b : {
       ...b, seats: b.seats.map((s) => s.id !== seatId ? s : { ...s, status: "booked", updatedAt: Date.now() }),
     }));
@@ -1660,8 +1670,7 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
   const [dropoffIdx, setDropoffIdx] = useState(null);
   const [dropoffLocation, setDropoffLocation] = useState(null);
   const [dropoffName, setDropoffName] = useState("");
-  const [lookingUpDropoff, setLookingUpDropoff] = useState(false);
-  const dropoffLookupId = useRef(0);
+  const [dropoffDistanceKm, setDropoffDistanceKm] = useState(null);
   const [routeCoords, setRouteCoords] = useState(null);
   const [locationError, setLocationError] = useState("");
   const [ticket, setTicket] = useState(null);
@@ -1691,53 +1700,25 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
 
   const rows = buildSeatRows(bus.seats);
   const hasAvailableSeat = bus.seats.some((seat) => isSeatSensorOnline(seat) && seat.status !== "booked");
-  async function selectDropoffLocation(location) {
-    setDropoffLocation(location);
-    setDropoffName("Finding place name…");
-    setLookingUpDropoff(true);
-    const lookupId = ++dropoffLookupId.current;
-    try {
-      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&lat=${location.lat}&lon=${location.lon}`;
-      const response = await fetch(url, { headers: { "Accept-Language": "en" } });
-      if (!response.ok) throw new Error("Location lookup failed");
-      const result = await response.json();
-      const address = result.address || {};
-      const namedParts = [result.name, address.road, address.neighbourhood, address.suburb, address.city || address.town || address.village]
-        .filter(Boolean).filter((part, index, all) => all.indexOf(part) === index);
-      const placeName = namedParts.length ? namedParts.join(", ") : result.display_name;
-      if (lookupId === dropoffLookupId.current) setDropoffName(placeName || `Route point (${location.lat.toFixed(5)}, ${location.lon.toFixed(5)})`);
-    } catch {
-      if (lookupId === dropoffLookupId.current) setDropoffName(`Route point (${location.lat.toFixed(5)}, ${location.lon.toFixed(5)})`);
-    } finally {
-      if (lookupId === dropoffLookupId.current) setLookingUpDropoff(false);
-    }
-  }
   useEffect(() => {
     let alive = true;
     fetchConfiguredBusRoute(bus).then((route) => { if (alive) setRouteCoords(route.coords); }).catch((err) => { if (alive) setLocationError(err.message); });
     return () => { alive = false; };
   }, []);
-  function useCurrentLocation() {
+  const farePoints = useMemo(() => buildFarePoints(routeCoords, bus.from, bus.to), [routeCoords, bus.from, bus.to]);
+  function chooseFarePoint(point, index) {
+    setDropoffIdx(index);
+    setDropoffLocation(point.location);
+    setDropoffName(point.label);
+    setDropoffDistanceKm(point.distanceKm);
     setLocationError("");
-    if (!navigator.geolocation) { setLocationError("Location is unavailable."); return; }
-    navigator.geolocation.getCurrentPosition((pos) => {
-      if (!routeCoords || routeCoords.length < 2) { setLocationError("Route map is loading."); return; }
-      let nearest = null, distance = Infinity;
-      for (const point of routeCoords) {
-        const d = haversineMeters(pos.coords.latitude, pos.coords.longitude, point[0], point[1]);
-        if (d < distance) { distance = d; nearest = point; }
-      }
-      if (nearest && distance <= 500) selectDropoffLocation({ lat: nearest[0], lon: nearest[1] });
-      else setLocationError("You are more than 500 m from this route. Tap a point on the route.");
-    }, () => setLocationError("Location permission was denied or unavailable."), { enableHighAccuracy: true, timeout: 10000 });
   }
 
 
   function confirmSeat() { if (seatId || standing) setStep("passenger"); }
   async function confirmDropoff() {
-    if (!dropoffLocation || lookingUpDropoff) return;
-    const label = dropoffName || `Route point (${dropoffLocation.lat.toFixed(5)}, ${dropoffLocation.lon.toFixed(5)})`;
-    const t = await issueTicket(seatId, label, dropoffIdx, dropoffLocation, standing, passengerType);
+    if (!dropoffLocation || !dropoffDistanceKm) return;
+    const t = await issueTicket(seatId, dropoffName, dropoffIdx, dropoffLocation, standing, passengerType, dropoffDistanceKm, farePoints.length);
     if (!t) return; // issuing failed; stay on this step so staff can retry
     setTicket(t);
     setStep("ticket");
@@ -1829,7 +1810,7 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
             })}
           </div>
           <div style={{ color: C.subDark, fontSize: 11.5, lineHeight: 1.45, marginBottom: 16 }}>
-            Select the applicable passenger type. The operator must verify eligibility and configure fare discounts before discounted fares are charged.
+            Student, senior, and PWD fares use the 20% discount in the fare guide. The operator must verify eligibility.
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             <button onClick={() => setStep("seat")} style={{ flex: 1, background: C.panel2, border: "none", color: "#fff", borderRadius: 14, padding: "13px 0", fontWeight: 700, cursor: "pointer" }}>Back</button>
@@ -1844,30 +1825,39 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
             <div style={{ color: "#fff", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 19 }}>Where are you getting off?</div>
             <div style={{ color: C.subDark, fontSize: 12.5, marginTop: 4 }}>{PASSENGER_TYPES[passengerType]} · {standing ? "Standing" : `Seat ${seatId}`} · {bus.name}</div>
           </div>
-          <div style={{ color: C.subDark, fontSize: 12, marginBottom: 8 }}>Tap the exact drop-off point on the route. The ticket will show its place name and save its coordinates.</div>
-          <button onClick={useCurrentLocation} style={{ marginBottom: 8, background: C.panel, border: "1px solid #454966", color: "#fff", borderRadius: 10, padding: "9px 12px" }}>Use my current location</button>
-          {locationError && <div style={{ color: "#FDBA74", fontSize: 12, marginBottom: 8 }}>{locationError}</div>}
+          <label style={{ display: "block", color: C.subDark, fontSize: 12, marginBottom: 8 }} htmlFor="fare-point-select">
+            Choose a drop-off point along {bus.from} → {bus.to}.
+          </label>
+          <select id="fare-point-select" value={dropoffIdx ?? ""} onChange={(event) => {
+            const index = Number(event.target.value);
+            if (Number.isInteger(index) && farePoints[index]) chooseFarePoint(farePoints[index], index);
+          }} style={{ width: "100%", background: C.panel, border: "1px solid #454966", color: "#fff", borderRadius: 10, padding: "11px 12px", marginBottom: 10 }}>
+            <option value="">Select a fare point…</option>
+            {farePoints.map((point, index) => <option key={point.id} value={index}>{point.label}</option>)}
+          </select>
+          {locationError && <div role="alert" style={{ color: C.booked, fontSize: 12, marginBottom: 8 }}>{locationError}</div>}
           <div style={{ height: 220, borderRadius: 14, overflow: "hidden", marginBottom: 10 }}>
             {routeCoords && routeCoords.length > 1 ? <MapContainer center={routeCoords[Math.floor(routeCoords.length / 2)]} zoom={12} style={{ width: "100%", height: "100%" }}>
               <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <Polyline positions={routeCoords} pathOptions={{ color: C.orange, weight: 5 }} />
-              <DropoffMapClick coords={routeCoords} onSelect={selectDropoffLocation} />
-              {dropoffLocation && <Marker position={[dropoffLocation.lat, dropoffLocation.lon]} />}
+              {farePoints.map((point, index) => <Marker key={point.id} position={[point.location.lat, point.location.lon]}
+                icon={stopDivIcon(index === dropoffIdx ? C.orangeDeep : C.yellow)}
+                eventHandlers={{ click: () => chooseFarePoint(point, index) }} />)}
             </MapContainer> : <div style={{ height: "100%", display: "grid", placeItems: "center", background: C.panel, color: C.subDark }}>Loading route map...</div>}
           </div>
-          <div style={{ color: dropoffLocation ? "#4ADE80" : C.subDark, fontSize: 12, lineHeight: 1.5, marginBottom: 18 }}>
-            {dropoffLocation ? <><strong>{lookingUpDropoff ? "Finding place…" : dropoffName}</strong><br />Pin: {dropoffLocation.lat.toFixed(5)}, {dropoffLocation.lon.toFixed(5)}</> : "No drop-off location selected"}
+          <div style={{ color: dropoffLocation ? C.text : C.subDark, fontSize: 12, lineHeight: 1.5, marginBottom: 18 }}>
+            {dropoffLocation ? <><strong>{dropoffName}</strong><br />Distance: {dropoffDistanceKm.toFixed(1)} km · Fare: ₱{calculateFare(passengerType, dropoffDistanceKm).toFixed(2)}<br />Fare points follow the mapped route.</> : "Select a fare point from the list or tap a marked point on the map."}
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             <button onClick={() => setStep("seat")} style={{ flex: 1, background: C.panel2, border: "none", color: "#fff",
               borderRadius: 14, padding: "13px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
               Back
             </button>
-            <button onClick={confirmDropoff} disabled={!dropoffLocation || lookingUpDropoff} style={{ flex: 2,
-              background: dropoffLocation && !lookingUpDropoff ? C.orange : C.panel2, border: "none", color: "#fff", borderRadius: 14,
+            <button onClick={confirmDropoff} disabled={!dropoffLocation} style={{ flex: 2,
+              background: dropoffLocation ? C.orange : C.panel2, border: "none", color: "#fff", borderRadius: 14,
               padding: "13px 0", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 14.5,
-              cursor: dropoffLocation && !lookingUpDropoff ? "pointer" : "not-allowed" }}>
-              {lookingUpDropoff ? "Finding location…" : "Create ticket"}
+              cursor: dropoffLocation ? "pointer" : "not-allowed" }}>
+              Create ticket
             </button>
           </div>
         </div>
