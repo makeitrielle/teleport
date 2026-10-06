@@ -129,23 +129,24 @@ function DropoffMapClick({ coords, onSelect }) {
 /* ---------------------------------- THEME ---------------------------------- */
 
 const C = {
-  orange: "#FF7A1A",
-  orangeDeep: "#E8432B",
-  orangeSoft: "#FFE2C7",
-  yellow: "#FFCB4D",
+  // Jasper Jean's bus livery: red body panels, warm yellow, white, and charcoal.
+  orange: "#CE4026",
+  orangeDeep: "#A92F21",
+  orangeSoft: "#FFE8B5",
+  yellow: "#F2B62B",
   ink: "#14162B",
   panel: "#1B1E3B",
   panel2: "#242850",
-  cream: "#FFF9F3",
-  card: "#FFFFFF",
-  line: "#F0E3D6",
-  text: "#241C14",
-  sub: "#9A8C7C",
-  subDark: "#9AA0C4",
-  available: "#2E6EEA",
-  booked: "#FF5A5A",
-  success: "#22C55E",
-  fault: "#B7BBD6",
+  cream: "#FFF2DE",
+  card: "#FFF8EC",
+  line: "#D8C9B2",
+  text: "#25282C",
+  sub: "#55595F",
+  subDark: "#4B5056",
+  available: "#1D56B3",
+  booked: "#C73232",
+  success: "#16753A",
+  fault: "#666B72",
 };
 
 const busDivIcon = L.divIcon({
@@ -242,6 +243,40 @@ function GlobalStyle() {
       ::-webkit-scrollbar { width:6px; height:6px; }
       ::-webkit-scrollbar-thumb { background:#00000022; border-radius:4px; }
 
+      /* Jasper Jean palette: red-orange and bus yellow over warm ivory. */
+      .teleportTheme [style*="background: rgb(20, 22, 43)"]:not(input):not(select):not(textarea):not(button) {
+        background: radial-gradient(ellipse at 0% 100%, ${C.orange} 0%, transparent 44%), radial-gradient(ellipse at 100% 0%, ${C.yellow} 0%, transparent 42%), #FFF2DE !important;
+        color: ${C.text} !important;
+      }
+      .teleportTheme input[style*="background: rgb(20, 22, 43)"],
+      .teleportTheme select[style*="background: rgb(20, 22, 43)"],
+      .teleportTheme textarea[style*="background: rgb(20, 22, 43)"] {
+        background: #FFFDF8 !important; color: ${C.text} !important; border-color: ${C.line} !important;
+      }
+      .teleportTheme [style*="background: rgb(255, 255, 255)"] { background: #FFF8EC !important; }
+      .teleportTheme [style*="background: rgb(27, 30, 59)"] {
+        background: #FFF8EC !important;
+        color: ${C.text} !important;
+        border-color: ${C.line} !important;
+        box-shadow: 0 10px 28px rgba(85, 48, 20, .07);
+      }
+      .teleportTheme [style*="background: rgb(36, 40, 80)"] {
+        background: #FFF5D7 !important;
+        color: #604A1C !important;
+        border-color: ${C.line} !important;
+      }
+      .teleportTheme [style*="color: rgb(255, 255, 255)"]:not(button):not([style*="background: rgb(206, 64, 38)"]) {
+        color: ${C.text} !important;
+      }
+      .teleportTheme [style*="color: rgb(154, 160, 196)"] { color: ${C.sub} !important; }
+      .teleportTheme [style*="color: rgb(206, 64, 38)"] { color: ${C.orangeDeep} !important; }
+      .teleportTheme button[style*="background: rgb(36, 40, 80)"] { color: #604A1C !important; }
+      .teleportTheme button[style*="background: rgb(206, 64, 38)"] { color: #fff !important; }
+      .teleportTheme input, .teleportTheme select, .teleportTheme textarea { color: ${C.text} !important; }
+      .teleportTheme input::placeholder, .teleportTheme textarea::placeholder { color: #62666C !important; opacity: 1; }
+      .teleportTheme :focus-visible { outline: 3px solid ${C.yellow} !important; outline-offset: 2px; }
+      .teleportTheme .saSidebar { background: #FFF2DE !important; }
+
       /* ---------------- RESPONSIVE: admin/kiosk dashboards ---------------- */
       @media (max-width: 860px) {
         .saShell { flex-direction: column !important; }
@@ -314,6 +349,14 @@ function makeSeats(total, bookedCount, faultyIds = []) {
 }
 
 function normalizeBusLayout(bus) {
+  const endpoint = (name, fallback) => {
+    const compact = String(name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (compact.includes("pitx")) return "PITX";
+    if (compact.includes("palapala")) return "SM Pala-Pala";
+    return fallback;
+  };
+  const from = endpoint(bus.from, "PITX");
+  const to = endpoint(bus.to, from === "PITX" ? "SM Pala-Pala" : "PITX");
   const byId = new Map((bus.seats || []).map((seat) => [Number(seat.id), seat]));
   const seats = Array.from({ length: 61 }, (_, index) => {
     const id = index + 1;
@@ -322,7 +365,7 @@ function normalizeBusLayout(bus) {
       ? { ...existing, id, sensor: id <= 5 && existing.sensor !== "fault" ? "ok" : "fault" }
       : { id, status: "available", sensor: "fault", updatedAt: Date.now() };
   });
-  return { ...bus, totalSeats: 61, seats };
+  return { ...bus, from, to, stops: [from, to], totalSeats: 61, seats };
 }
 // This app represents exactly ONE physical bus. busId is the stable,
 // human-readable identifier shared by GPS data, seat sensor data, the
@@ -330,13 +373,13 @@ function normalizeBusLayout(bus) {
 // backend/routes/bus.js for the server-side half of this single source
 // of truth.
 const seedBuses = [
-  { id: 1, busId: "BUS-001", name: "Bus 1", driver: "J. Cruz", from: "Iron District Mall", to: "SM Pala Pala",
-    stops: ["Iron District Mall", "SM Pala Pala"],
+  { id: 1, busId: "BUS-001", name: "Bus 1", driver: "J. Cruz", from: "PITX", to: "SM Pala-Pala",
+    stops: ["PITX", "SM Pala-Pala"],
     totalSeats: 61, seats: makeSeats(61, 0), progress: 0.32, status: "active", adminId: 1, etaMin: 20 },
 ];
 
 const seedRoutes = [
-  { id: 1, name: "Iron District Mall - SM Pala Pala", stops: ["Iron District Mall", "SM Pala Pala"] },
+  { id: 1, name: "PITX ↔ SM Pala-Pala", stops: ["PITX", "SM Pala-Pala"] },
 ];
 
 const seedAdmins = [
@@ -350,9 +393,15 @@ const seedPassengers = [
 ];
 
 const seedNotifications = [
-  { id: 1, title: "Bus 1 is 5 minutes away", body: "Arriving at SM Pala Pala.", time: "2m ago" },
-  { id: 2, title: "Fare update", body: "Regular fare is now available for the Iron District Mall - SM Pala Pala.", time: "1h ago" },
+  { id: 1, title: "Bus 1 is 5 minutes away", body: "Arriving at SM Pala-Pala.", time: "2m ago" },
+  { id: 2, title: "Fare update", body: "Regular fare is available on the PITX ↔ SM Pala-Pala route.", time: "1h ago" },
 ];
+
+const ROUTE_ENDPOINTS = ["PITX", "SM Pala-Pala"];
+function normalizeRoutes(routes) {
+  const saved = routes[0] || {};
+  return [{ ...saved, id: saved.id ?? 1, name: "PITX ↔ SM Pala-Pala", stops: ROUTE_ENDPOINTS }];
+}
 
 /* ---------------------------------- SMALL HELPERS ---------------------------------- */
 
@@ -392,9 +441,13 @@ function IconBadge({ icon, bg, color, size = 20 }) {
 
 function Logo({ scale = 1 }) {
   return (
-    <div style={{ width: 142 * scale, height: 103 * scale, flexShrink: 0, overflow: "hidden", borderRadius: 9,
-      background: "#fff", display: "grid", placeItems: "center" }}>
-      <img src="/jasper-jean-bus.png" alt="Jasper Jean bus" style={{ display: "block", width: "100%", height: "100%", objectFit: "contain" }} />
+    <div style={{ width: 222 * scale, height: 82 * scale, flexShrink: 0, overflow: "visible",
+      display: "flex", alignItems: "center", justifyContent: "center", gap: 7 * scale }}>
+      <img src="/jasper-jean-bus.png" alt="Jasper Jean bus" style={{ display: "block", width: 130 * scale,
+        height: 82 * scale, objectFit: "contain", mixBlendMode: "multiply" }} />
+      <span style={{ color: C.orangeDeep, fontFamily: FONT_DISPLAY, fontSize: 25 * scale,
+        fontWeight: 800, letterSpacing: "-.045em", lineHeight: 1, whiteSpace: "nowrap",
+        textShadow: `0 1px 0 ${C.yellow}` }}>TELE-PORT</span>
     </div>
   );
 }
@@ -1220,7 +1273,7 @@ function KioskWelcomeScreen({ onBegin }) {
     <main style={{ width: "100%", minHeight: "100vh", height: "100dvh", boxSizing: "border-box",
       display: "grid", placeItems: "center", overflow: "hidden", position: "relative",
       padding: "clamp(20px, 5vw, 64px)",
-      background: `radial-gradient(ellipse at 0% 100%, ${C.orange} 0%, transparent 44%), radial-gradient(ellipse at 100% 0%, ${C.yellow} 0%, transparent 42%), #fff`,
+      background: `radial-gradient(ellipse at 0% 100%, ${C.orange} 0%, transparent 44%), radial-gradient(ellipse at 100% 0%, ${C.yellow} 0%, transparent 42%), ${C.cream}`,
       fontFamily: FONT_BODY }}>
       <div aria-hidden="true" style={{ position: "absolute", width: "min(75vw, 720px)", aspectRatio: "1",
         borderRadius: "50%", border: `2px solid ${C.orange}55`, opacity: .55, pointerEvents: "none" }} />
@@ -1862,7 +1915,7 @@ function BusesTab({ buses, setBuses, routes, admins, usingMock }) {
   function startEdit(b) { setEditingId(b.id); setDraft({ ...b }); }
   function startAdd() {
     setAdding(true);
-    setDraft({ id: Date.now(), name: `Bus ${buses.length + 1}`, driver: "", from: "", to: "", totalSeats: 61, status: "idle", adminId: null, progress: 0, etaMin: 0 });
+    setDraft({ id: Date.now(), name: `Bus ${buses.length + 1}`, driver: "", from: "PITX", to: "SM Pala-Pala", totalSeats: 61, status: "idle", adminId: null, progress: 0, etaMin: 0 });
   }
 
   async function save() {
@@ -1874,7 +1927,7 @@ function BusesTab({ buses, setBuses, routes, admins, usingMock }) {
         try {
           const created = withId(await api.createBus({
             name: draft.name, driver: draft.driver, from: draft.from, to: draft.to,
-            stops: [draft.from, draft.to].filter(Boolean), totalSeats,
+            stops: [draft.from, draft.to], totalSeats,
             seats: makeSeats(totalSeats, 0), progress: 0, status: "idle", etaMin: 0,
           }));
           setBuses((prev) => [...prev, created]);
@@ -1890,7 +1943,7 @@ function BusesTab({ buses, setBuses, routes, admins, usingMock }) {
     } else {
       const current = buses.find((b) => b.id === editingId);
       const seats = totalSeats !== current.totalSeats ? makeSeats(totalSeats, 0) : current.seats;
-      const patch = { name: draft.name, driver: draft.driver, from: draft.from, to: draft.to, totalSeats, seats };
+      const patch = { name: draft.name, driver: draft.driver, from: draft.from, to: draft.to, stops: [draft.from, draft.to], totalSeats, seats };
 
       if (!usingMock) {
         setBusy(true);
@@ -1937,8 +1990,12 @@ function BusesTab({ buses, setBuses, routes, admins, usingMock }) {
             <td style={td}><InputSm value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></td>
             <td style={td}>
               <div style={{ display: "flex", gap: 6 }}>
-                <InputSm placeholder="From" value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })} />
-                <InputSm placeholder="To" value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} />
+                <SelectSm value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })}>
+                  {ROUTE_ENDPOINTS.map((endpoint) => <option key={endpoint} value={endpoint}>{endpoint}</option>)}
+                </SelectSm>
+                <SelectSm value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })}>
+                  {ROUTE_ENDPOINTS.map((endpoint) => <option key={endpoint} value={endpoint}>{endpoint}</option>)}
+                </SelectSm>
               </div>
             </td>
             <td style={td}><InputSm value={draft.driver} onChange={(e) => setDraft({ ...draft, driver: e.target.value })} /></td>
@@ -1961,8 +2018,12 @@ function BusesTab({ buses, setBuses, routes, admins, usingMock }) {
                   <td style={td}><InputSm value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></td>
                   <td style={td}>
                     <div style={{ display: "flex", gap: 6 }}>
-                      <InputSm value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })} />
-                      <InputSm value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} />
+                      <SelectSm value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })}>
+                        {ROUTE_ENDPOINTS.map((endpoint) => <option key={endpoint} value={endpoint}>{endpoint}</option>)}
+                      </SelectSm>
+                      <SelectSm value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })}>
+                        {ROUTE_ENDPOINTS.map((endpoint) => <option key={endpoint} value={endpoint}>{endpoint}</option>)}
+                      </SelectSm>
                     </div>
                   </td>
                   <td style={td}><InputSm value={draft.driver} onChange={(e) => setDraft({ ...draft, driver: e.target.value })} /></td>
@@ -2393,7 +2454,7 @@ function PassengerAuthScreen({ onLogin, onRegister, onForgotPassword }) {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: `linear-gradient(180deg, ${C.ink}, #0D0E1E)`, fontFamily: FONT_BODY,
+    <div style={{ minHeight: "100vh", background: `radial-gradient(ellipse at 0% 100%, ${C.orange} 0%, transparent 44%), radial-gradient(ellipse at 100% 0%, ${C.yellow} 0%, transparent 42%), ${C.cream}`, fontFamily: FONT_BODY,
       display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ width: "100%", maxWidth: 360 }}>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 22 }}><Logo scale={1.1} /></div>
@@ -2668,7 +2729,7 @@ export default function App() {
         ]);
         if (cancelled) return;
         setBuses(withIds(busesRes).map(normalizeBusLayout));
-        setRoutes(withIds(routesRes));
+        setRoutes(normalizeRoutes(withIds(routesRes)));
         setAdmins(withIds(adminsRes).map((a) => ({ ...a, busId: a.busId ? String(a.busId) : null })));
         setPassengers(withIds(passengersRes));
         setNotifications(withIds(notifsRes).map((n) => ({ ...n, time: n.time || "recently" })));
@@ -2881,7 +2942,7 @@ export default function App() {
   }
 
   return (
-    <div style={{ minHeight: "100vh" }}>
+    <div className="teleportTheme" style={{ minHeight: "100vh" }}>
       <GlobalStyle />
 
       {usingMock && (
