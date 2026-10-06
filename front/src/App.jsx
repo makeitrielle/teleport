@@ -178,13 +178,17 @@ function GlobalStyle() {
       @media print {
         /* 58 mm receipt roll, with a 48 mm printable ticket area. */
         @page { size: 58mm auto; margin: 0; }
+        html, body, #root { width: 58mm !important; min-width: 58mm !important; max-width: 58mm !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
         body * { visibility: hidden !important; }
         .ticket-print-area, .ticket-print-area * { visibility: visible !important; }
-        .ticket-print-area { position: absolute !important; left: 0 !important; top: 0 !important; width: 48mm !important; margin: 0 !important; }
-        .ticket-print-card { width: 48mm !important; max-width: 48mm !important; padding: 2mm !important; margin: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; color: #111 !important; background: #fff !important; font-size: 8pt !important; }
-        .ticket-print-card > div[style*="grid-template-columns"] { grid-template-columns: 16mm minmax(0, 1fr) !important; gap: 1mm !important; }
-        .ticket-print-card img { width: 34mm !important; height: 34mm !important; }
-        .ticket-print-card > div[style*="width: 144px"] { width: 36mm !important; height: 36mm !important; }
+        .ticket-print-area { position: fixed !important; left: 5mm !important; top: 0 !important; width: 48mm !important; max-width: 48mm !important; margin: 0 !important; padding: 0 !important; }
+        .ticket-print-card { display: block !important; width: 48mm !important; min-width: 48mm !important; max-width: 48mm !important; padding: 2mm !important; margin: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; color: #000 !important; background: #fff !important; font-size: 9pt !important; line-height: 1.25 !important; }
+        .ticket-print-card .ticket-row { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) !important; align-items: start !important; column-gap: 1mm !important; padding: .6mm 0 !important; break-inside: avoid !important; }
+        .ticket-print-card .ticket-label { color: #111 !important; font-size: 8pt !important; white-space: normal !important; }
+        .ticket-print-card .ticket-value { color: #000 !important; font-size: 9pt !important; font-weight: 700 !important; text-align: right !important; overflow-wrap: anywhere !important; }
+        .ticket-print-card .ticket-separator { font-size: 8pt !important; line-height: 1.3 !important; letter-spacing: 0 !important; }
+        .ticket-print-card .ticket-qr-wrap { width: 38mm !important; height: 38mm !important; margin: 2mm auto !important; }
+        .ticket-print-card .ticket-qr { width: 36mm !important; height: 36mm !important; image-rendering: pixelated !important; }
         .ticket-print-card > div { break-inside: avoid; }
         .ticket-no-print { display: none !important; }
       }
@@ -475,38 +479,46 @@ function TicketCard({ ticket, dark }) {
   const issuedAt = new Date(issued);
   const dateText = issuedAt.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "2-digit" });
   const timeText = issuedAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-  const labelStyle = { fontSize: 11, color: "#252525", whiteSpace: "nowrap" };
-  const valueStyle = { fontSize: 12, color: "#171717", fontWeight: 600, overflowWrap: "anywhere" };
-  const rowStyle = { display: "grid", gridTemplateColumns: "112px minmax(0,1fr)", gap: 6, padding: "3px 0" };
-  const separator = "*".repeat(38);
+  const labelStyle = { fontSize: 11, color: "#333", whiteSpace: "normal" };
+  const valueStyle = { fontSize: 12, color: "#111", fontWeight: 700, overflowWrap: "anywhere", textAlign: "right" };
+  const rowStyle = { display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1.25fr)", alignItems: "start", gap: 6, padding: "3px 0" };
+  const separator = "*".repeat(27);
+  const row = (label, value) => (
+    <div className="ticket-row" style={rowStyle} key={label}>
+      <span className="ticket-label" style={labelStyle}>{label}</span>
+      <span className="ticket-value" style={valueStyle}>{value}</span>
+    </div>
+  );
   return (
     <div className="ticket-print-card" style={{ width: "min(100%, 340px)", margin: "0 auto", padding: "16px 15px 14px",
-      color: "#171717", background: "#fff", border: "1px solid #dedbd5", boxShadow: "0 8px 24px rgba(0,0,0,.12)",
+      color: "#111", background: "#fff", border: "1px solid #dedbd5", boxShadow: "0 8px 24px rgba(0,0,0,.12)",
       fontFamily: "'Courier New', monospace" }}>
       <div style={{ textAlign: "center", paddingBottom: 8 }}>
         <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: ".02em" }}>JASPER JEAN</div>
         <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>BUS LINER · PASSENGER TICKET</div>
       </div>
-      <div aria-hidden="true" style={{ whiteSpace: "nowrap", overflow: "hidden", fontSize: 10, lineHeight: 1.5 }}>{separator}</div>
-      <div style={rowStyle}><span style={labelStyle}>Route:</span><span style={valueStyle}>{ticket.from || "Boarding point"} - {ticket.routeTo || ticket.busRouteTo || ticket.dropoff || "—"}</span></div>
-      <div style={rowStyle}><span style={labelStyle}>Bus Number:</span><span style={valueStyle}>{ticket.busNumber || ticket.busId || ticket.busName || "—"}</span></div>
-      <div style={rowStyle}><span style={labelStyle}>Date:</span><span style={valueStyle}>{dateText} {timeText}</span></div>
-      <div style={rowStyle}><span style={labelStyle}>Driver:</span><span style={valueStyle}>{ticket.driver || "—"}</span></div>
-      <div style={rowStyle}><span style={labelStyle}>Passenger Type:</span><span style={valueStyle}>{(PASSENGER_TYPES[ticket.passengerType] || "Regular").toUpperCase()}</span></div>
-      <div style={rowStyle}><span style={labelStyle}>Ride:</span><span style={valueStyle}>{ticket.standing || ticket.seat === "Standing" ? "STANDING" : `SEAT ${ticket.seat ?? "—"}`}</span></div>
-      <div style={rowStyle}><span style={labelStyle}>From:</span><span style={valueStyle}>{ticket.from || "Boarding point"}</span></div>
-      <div style={rowStyle}><span style={labelStyle}>To:</span><span style={valueStyle}>{ticket.dropoff || "—"}</span></div>
-      <div aria-hidden="true" style={{ whiteSpace: "nowrap", overflow: "hidden", fontSize: 10, lineHeight: 1.5, marginTop: 2 }}>{separator}</div>
-      <div style={{ textAlign: "center", fontSize: 11, margin: "5px 0" }}>TICKET NO. {ticket.code}</div>
+      <div className="ticket-separator" aria-hidden="true" style={{ whiteSpace: "nowrap", overflow: "hidden", fontSize: 10, lineHeight: 1.5 }}>{separator}</div>
+      {row("Route:", `${ticket.from || "PITX"} - ${ticket.routeTo || ticket.busRouteTo || "SM Pala-Pala"}`)}
+      {row("Bus Number:", ticket.busNumber || ticket.busId || ticket.busName || "—")}
+      {row("Date:", `${dateText} ${timeText}`)}
+      {ticket.driver ? row("Driver:", ticket.driver) : null}
+      {ticket.conductor ? row("Conductor:", ticket.conductor) : null}
+      {row("Passenger Type:", (PASSENGER_TYPES[ticket.passengerType] || "Regular").toUpperCase())}
+      {row("Ride:", ticket.standing || ticket.seat === "Standing" ? "STANDING" : `SEAT ${ticket.seat ?? "—"}`)}
+      {row("From:", ticket.from || "PITX")}
+      {row("To:", ticket.dropoff || "SM Pala-Pala")}
+      {ticket.distance ? row("Distance:", `${ticket.distance} KM`) : null}
+      <div className="ticket-separator" aria-hidden="true" style={{ whiteSpace: "nowrap", overflow: "hidden", fontSize: 10, lineHeight: 1.5, marginTop: 2 }}>{separator}</div>
+      <div style={{ textAlign: "center", fontSize: 10, margin: "5px 0", overflowWrap: "anywhere" }}>TICKET NO. {ticket.code}</div>
       <div style={{ textAlign: "center", fontSize: 19, fontWeight: 700, margin: "6px 0" }}>
         Php {Number(ticket.fare || 0).toFixed(2)}
       </div>
-      <div aria-hidden="true" style={{ whiteSpace: "nowrap", overflow: "hidden", fontSize: 10, lineHeight: 1.5 }}>{separator}</div>
-      <div style={{ width: 144, height: 144, background: "#fff", margin: "7px auto 5px", display: "grid", placeItems: "center" }}>
-        <img src={qrUrl(ticketLink(ticket.code), 280)} alt="Ticket QR code" width={144} height={144}
+      <div className="ticket-separator" aria-hidden="true" style={{ whiteSpace: "nowrap", overflow: "hidden", fontSize: 10, lineHeight: 1.5 }}>{separator}</div>
+      <div className="ticket-qr-wrap" style={{ width: 144, height: 144, background: "#fff", margin: "7px auto 5px", display: "grid", placeItems: "center" }}>
+        <img className="ticket-qr" src={qrUrl(ticketLink(ticket.code), 384)} alt="Ticket QR code" width={144} height={144}
           style={{ display: "block", imageRendering: "pixelated" }} />
       </div>
-      <div style={{ fontSize: 10, lineHeight: 1.45, textAlign: "center" }}>Scan QR for bus ETA and seat availability<br />Powered by Jasper Jean</div>
+      <div style={{ fontSize: 10, lineHeight: 1.45, textAlign: "center" }}>SCAN QR FOR BUS ETA AND SEAT AVAILABILITY<br />POWERED BY TELE-PORT</div>
     </div>
   );
 }
