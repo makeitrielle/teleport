@@ -392,11 +392,9 @@ function IconBadge({ icon, bg, color, size = 20 }) {
 
 function Logo({ scale = 1 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", lineHeight: 0.85, transform: `scale(${scale})` }}>
-      <span style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 26, color: C.yellow,
-        WebkitTextStroke: `2px ${C.ink}`, letterSpacing: 1 }}>TELE</span>
-      <span style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 26, color: "#fff",
-        WebkitTextStroke: `2px ${C.ink}`, letterSpacing: 1, marginTop: 2 }}>PORT</span>
+    <div style={{ width: 142 * scale, height: 103 * scale, flexShrink: 0, overflow: "hidden", borderRadius: 9,
+      background: "#fff", display: "grid", placeItems: "center" }}>
+      <img src="/jasper-jean-bus.png" alt="Jasper Jean bus" style={{ display: "block", width: "100%", height: "100%", objectFit: "contain" }} />
     </div>
   );
 }
@@ -832,6 +830,7 @@ function TicketScanScreen({ buses, tickets, setTickets, myTicket, setMyTicket, g
           found = { id: String(raw._id || raw.id), code: raw.qrCode, busId, busNumber: busData?.busId,
             busName: busData?.name || "Bus", busRouteTo: busData?.to, driver: busData?.driver, fare: raw.fare, from: raw.from,
             seat: raw.standing ? "Standing" : raw.seatId, standing: raw.standing, passengerType: raw.passengerType || "regular", dropoff: raw.to,
+            dropoffLocation: raw.dropoffLocation,
             issuedAt: raw.createdAt, dropoffIndex: Math.max(0, stopIndex), totalStops: busData?.stops?.length || 1, claimed: true };
         }
       }
@@ -995,12 +994,27 @@ function ActivityScreen({ activity }) {
   );
 }
 
-function NotifScreen({ notifications }) {
+function NotifScreen({ notifications, locationAlertsEnabled, locationStatus, onEnableAlerts, onDisableAlerts }) {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
       <PassengerHeader />
       <div style={{ padding: "16px 18px 6px", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 18, color: C.text }}>Notifications</div>
+      <div style={{ margin: "8px 14px 4px", padding: 14, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <IconBadge icon={<MapPin />} bg={C.orangeSoft} color={C.orangeDeep} />
+          <div style={{ flex: 1 }}>
+            <div style={{ color: C.text, fontSize: 13, fontWeight: 700 }}>Bus proximity alerts</div>
+            <div style={{ color: C.sub, fontSize: 11.5, marginTop: 3 }}>{locationStatus || (locationAlertsEnabled ? "Location and notifications are enabled." : "Get an alert when the bus is near you or your drop-off.")}</div>
+          </div>
+        </div>
+        {!locationAlertsEnabled && <button onClick={onEnableAlerts} style={{ width: "100%", marginTop: 12, border: 0, borderRadius: 11,
+          background: C.orange, color: "#fff", padding: 11, fontWeight: 700, cursor: "pointer" }}>Enable location & notifications</button>}
+        {locationAlertsEnabled && <button onClick={onDisableAlerts} style={{ width: "100%", marginTop: 12, border: `1px solid ${C.line}`, borderRadius: 11,
+          background: "#fff", color: C.subDark, padding: 10, fontWeight: 700, cursor: "pointer" }}>Turn off location alerts</button>}
+        <div style={{ color: C.sub, fontSize: 10.5, lineHeight: 1.4, marginTop: 9 }}>Location is used on this device while the website is open. Alerts need a live bus GPS signal and an active connected ticket.</div>
+      </div>
       <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+        {notifications.length === 0 && <div style={{ textAlign: "center", color: C.sub, fontSize: 13, padding: "22px 0" }}>No notifications yet.</div>}
         {notifications.map((n) => (
           <div key={n.id} style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 16, padding: 14, display: "flex", gap: 12 }}>
             <IconBadge icon={<Bell />} bg={C.orangeSoft} color={C.orangeDeep} />
@@ -1171,7 +1185,8 @@ function PassengerApp({ shared, onLogout, passengerName, previewMode }) {
     else if (screen === "ticket") body = <TicketScanScreen buses={buses} tickets={tickets} setTickets={setTickets} myTicket={myTicket} setMyTicket={setMyTicket} goto={goto} />;
     else body = <PassengerHome buses={buses} goto={goto} passengerName={passengerName} myTicket={myTicket} />;
   } else if (tab === "activity") body = <ActivityScreen activity={activity} />;
-  else if (tab === "notif") body = <NotifScreen notifications={notifications} />;
+  else if (tab === "notif") body = <NotifScreen notifications={notifications} locationAlertsEnabled={shared.locationAlertsEnabled}
+    locationStatus={shared.locationStatus} onEnableAlerts={shared.enableLocationAlerts} onDisableAlerts={shared.disableLocationAlerts} />;
   else body = <ProfileScreen passengerName={passengerName} onLogout={onLogout} previewMode={previewMode}
     myTicket={myTicket} onScanTicket={openTicketScanner} />;
 
@@ -2592,11 +2607,56 @@ export default function App() {
   const [notifications, setNotifications] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [myTicket, setMyTicket] = useState(null);
+  const [locationAlertsEnabled, setLocationAlertsEnabled] = useState(() => {
+    try { return localStorage.getItem("tele-port-location-alerts") === "enabled" && "Notification" in window && Notification.permission === "granted"; } catch { return false; }
+  });
+  const [passengerLocation, setPassengerLocation] = useState(null);
+  const [locationStatus, setLocationStatus] = useState("");
+  const sentProximityAlerts = useRef(new Set());
   const [activeKioskAdmin, setActiveKioskAdmin] = useState(null);
   const [loading, setLoading] = useState(true);
   // true once we've confirmed the backend is unreachable and fallen back to
   // local, in-memory demo data instead (buses/tickets won't be saved).
   const [usingMock, setUsingMock] = useState(false);
+
+  async function enableLocationAlerts() {
+    setLocationStatus("");
+    if (!navigator.geolocation) {
+      setLocationStatus("This browser does not provide location access. Try Safari or Chrome on HTTPS.");
+      return;
+    }
+    if (!("Notification" in window)) {
+      setLocationStatus("This browser does not support system notifications. You can still view updates in the Notifications tab.");
+      return;
+    }
+    try {
+      const permission = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+      if (permission !== "granted") {
+        setLocationStatus("Notifications are blocked. Allow notifications for this site in browser settings, then try again.");
+        return;
+      }
+      navigator.geolocation.getCurrentPosition((position) => {
+        const coords = { lat: position.coords.latitude, lon: position.coords.longitude, accuracy: position.coords.accuracy };
+        setPassengerLocation(coords);
+        setLocationAlertsEnabled(true);
+        setLocationStatus(`Location enabled (about ${Math.round(coords.accuracy)} m accuracy). Waiting for a live bus GPS signal.`);
+        try { localStorage.setItem("tele-port-location-alerts", "enabled"); } catch { /* preference storage is optional */ }
+      }, (error) => {
+        const reason = error.code === 1 ? "Location permission was denied. Allow location for this site in browser settings." :
+          error.code === 3 ? "Could not get your location in time. Move near a window and try again." : "Your location is unavailable. Check device location services and try again.";
+        setLocationStatus(reason);
+      }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+    } catch (error) {
+      setLocationStatus(error.message || "Could not enable notifications.");
+    }
+  }
+
+  function disableLocationAlerts() {
+    setLocationAlertsEnabled(false);
+    setPassengerLocation(null);
+    setLocationStatus("Location alerts are off.");
+    try { localStorage.removeItem("tele-port-location-alerts"); } catch { /* preference storage is optional */ }
+  }
 
   // ---- initial data load from the backend, with a mock-data fallback ----
   useEffect(() => {
@@ -2667,22 +2727,58 @@ export default function App() {
     return () => clearInterval(t);
   }, [usingMock]);
 
-  // Watch the passenger's scanned ticket and fire a notification once the
-  // bus gets close to their drop-off stop.
+  // Keep an opt-in live location fix on this device for proximity notifications.
   useEffect(() => {
-    if (!myTicket || myTicket.notified) return;
-    const bus = buses.find((b) => b.id === myTicket.busId);
-    if (!bus) return;
-    const target = (myTicket.dropoffIndex + 1) / myTicket.totalStops;
-    if (bus.progress >= target - 0.18) {
-      setNotifications((prev) => [{ id: Date.now(), title: `Approaching ${myTicket.dropoff}`,
-        body: `${bus.name} is getting close to your drop-off stop. Get ready!`, time: "Just now" }, ...prev]);
-      setMyTicket((prev) => prev && { ...prev, notified: true });
+    if (!locationAlertsEnabled || !navigator.geolocation) return undefined;
+    const watchId = navigator.geolocation.watchPosition((position) => {
+      const coords = { lat: position.coords.latitude, lon: position.coords.longitude, accuracy: position.coords.accuracy };
+      setPassengerLocation(coords);
+      setLocationStatus(`Location active (about ${Math.round(coords.accuracy)} m accuracy).`);
+    }, (error) => {
+      setLocationStatus(error.code === 1 ? "Location permission was turned off. Re-enable it in browser settings." : "Location temporarily unavailable; proximity alerts are paused.");
+    }, { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 });
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [locationAlertsEnabled]);
+
+  // Compare the user's opt-in location and the selected ticket drop-off against
+  // fresh bus GPS fixes. Notifications are one-time per ticket and alert type.
+  useEffect(() => {
+    if (!locationAlertsEnabled || !passengerLocation || Notification.permission !== "granted") return;
+    const ticketBus = myTicket ? buses.find((bus) => String(bus.id) === String(myTicket.busId)) : null;
+    const candidates = myTicket ? [ticketBus] : buses.filter((bus) => bus.status === "active");
+    const activeBus = candidates.find((bus) => bus?.status === "active" && bus.location?.lat != null && bus.location?.lon != null &&
+      bus.location.updatedAt && Date.now() - new Date(bus.location.updatedAt).getTime() < 120000);
+    if (!activeBus) {
+      if (myTicket) setLocationStatus("Location active. Waiting for a fresh GPS signal from your bus.");
+      return;
     }
-  }, [buses, myTicket]);
+
+    const tripKey = myTicket?.code || String(activeBus.id);
+    const alerts = [];
+    const busToPassenger = haversineMeters(activeBus.location.lat, activeBus.location.lon, passengerLocation.lat, passengerLocation.lon);
+    if (busToPassenger <= 500) alerts.push({ key: `${tripKey}:passenger-nearby`, title: "Your bus is nearby", body: `${activeBus.name} is within 500 m of your current location.` });
+    const dropoff = myTicket?.dropoffLocation;
+    if (dropoff?.lat != null && dropoff?.lon != null) {
+      const busToDropoff = haversineMeters(activeBus.location.lat, activeBus.location.lon, dropoff.lat, dropoff.lon);
+      if (busToDropoff <= 500) alerts.push({ key: `${tripKey}:dropoff-nearby`, title: `Approaching ${myTicket.dropoff || "your stop"}`, body: `${activeBus.name} is within 500 m of your selected drop-off. Get ready to exit.` });
+    }
+
+    alerts.forEach(({ key, title, body }) => {
+      if (sentProximityAlerts.current.has(key)) return;
+      sentProximityAlerts.current.add(key);
+      const id = Date.now();
+      setNotifications((previous) => [{ id, title, body, time: "Just now" }, ...previous]);
+      const options = { body, icon: "/icons/icon-192.png", badge: "/icons/icon-192.png", tag: key, data: { url: "/" } };
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.ready.then((registration) => registration.showNotification(title, options))
+          .catch(() => new Notification(title, options));
+      } else new Notification(title, options);
+    });
+  }, [buses, myTicket, locationAlertsEnabled, passengerLocation]);
 
   const shared = { buses, setBuses, routes, setRoutes, admins, setAdmins, passengers, setPassengers, activity,
-    notifications, setNotifications, tickets, setTickets, myTicket, setMyTicket, usingMock };
+    notifications, setNotifications, tickets, setTickets, myTicket, setMyTicket, usingMock,
+    locationAlertsEnabled, locationStatus, enableLocationAlerts, disableLocationAlerts };
 
   // ---- passenger login / register (public entry point) ----
   async function handlePassengerLogin(email, password) {

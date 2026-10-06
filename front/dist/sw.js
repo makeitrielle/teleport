@@ -19,6 +19,7 @@ self.addEventListener("install", (event) => {
     }));
     await cache.addAll([
       "/manifest.webmanifest",
+      "/jasper-jean-bus.png",
       "/icons/icon-192.png",
       "/icons/icon-512.png",
       "/icons/icon-180.png",
@@ -55,4 +56,15 @@ self.addEventListener("fetch", (event) => {
       return response;
     })));
   }
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const client of windows) {
+      if ("focus" in client) return client.focus();
+    }
+    return self.clients.openWindow(event.notification.data?.url || "/");
+  })());
 });
