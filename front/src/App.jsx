@@ -1434,6 +1434,7 @@ function KioskWelcomeScreen({ onBegin }) {
         }));
         const ticket = { id: created.id, code: created.qrCode, busId: bus.id, busNumber: bus.busId, busName: bus.name,
           busRouteTo: bus.to, driver: bus.driver, fare: created.fare, from: bus.from, issuedAt: created.createdAt,
+          printToken: created.printToken,
           seat: standing ? "Standing" : seatId, standing, passengerType, dropoff, dropoffIndex, dropoffLocation, totalStops: bus.stops.length, claimed: false, notified: false };
         setTickets((prev) => [...prev, ticket]);
         addLog(`Ticket ${ticket.code} issued — seat ${seatId} → ${dropoff}`);
@@ -1622,6 +1623,29 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
   const [routeCoords, setRouteCoords] = useState(null);
   const [locationError, setLocationError] = useState("");
   const [ticket, setTicket] = useState(null);
+  const [printing, setPrinting] = useState(false);
+  const [printerSent, setPrinterSent] = useState(false);
+  const [printerMessage, setPrinterMessage] = useState("");
+
+  async function printKioskTicket() {
+    if (printing || !ticket) return;
+    if (!ticket.printToken || !ticket.id) {
+      window.print();
+      return;
+    }
+    setPrinting(true);
+    setPrinterMessage("");
+    try {
+      const result = await api.printTicket(ticket.id, ticket.printToken);
+      setPrinterSent(true);
+      setTicket((previous) => ({ ...previous, printToken: null }));
+      setPrinterMessage(result.message || "Ticket sent to the XP-58 printer.");
+    } catch (error) {
+      setPrinterMessage(error.message || "Could not reach the kiosk printer.");
+    } finally {
+      setPrinting(false);
+    }
+  }
 
   const rows = buildSeatRows(bus.seats);
   const hasAvailableSeat = bus.seats.some((seat) => isSeatSensorOnline(seat) && seat.status !== "booked");
@@ -1801,7 +1825,7 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
               background: dropoffLocation && !lookingUpDropoff ? C.orange : C.panel2, border: "none", color: "#fff", borderRadius: 14,
               padding: "13px 0", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 14.5,
               cursor: dropoffLocation && !lookingUpDropoff ? "pointer" : "not-allowed" }}>
-              {lookingUpDropoff ? "Finding location…" : "Print ticket"}
+              {lookingUpDropoff ? "Finding location…" : "Create ticket"}
             </button>
           </div>
         </div>
@@ -1818,10 +1842,15 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
             <div style={{ color: C.subDark, fontSize: 12.5, marginTop: 4 }}>Scan the QR code with the passenger app</div>
           </div>
           <div className="ticket-print-area"><TicketCard ticket={ticket} dark /></div>
-          <button className="ticket-no-print" onClick={() => window.print()} style={{ width: "100%", marginTop: 18, background: C.orange, border: "none",
+          {printerMessage && <div role="status" aria-live="polite" className="ticket-no-print" style={{ marginTop: 12, color: printerMessage.includes("sent") ? "#4ADE80" : "#FDBA74", textAlign: "center", fontSize: 12 }}>{printerMessage}</div>}
+          <button className="ticket-no-print" onClick={printKioskTicket} disabled={printing || printerSent} style={{ width: "100%", marginTop: 18, background: C.orange, border: "none",
             color: "#fff", borderRadius: 14, padding: "13px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
-            Print ticket
+            {printing ? "Sending to XP-58…" : printerSent ? "Ticket sent to XP-58" : ticket.printToken ? "Print ticket on XP-58" : "Print ticket"}
           </button>
+          {printerMessage && !printerMessage.includes("sent") && <button className="ticket-no-print" onClick={() => window.print()} style={{ width: "100%", marginTop: 8, background: C.panel2, border: "none",
+            color: "#fff", borderRadius: 14, padding: "11px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>
+            Use Edge print dialog instead
+          </button>}
           <button className="ticket-no-print" onClick={onFinish} style={{ width: "100%", marginTop: 10, background: C.panel2, border: "none",
             color: "#fff", borderRadius: 14, padding: "13px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
             Finish

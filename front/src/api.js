@@ -70,6 +70,11 @@ export const api = {
   },
   createTicket: (data) => request("/tickets", { method: "POST", body: JSON.stringify(data) }),
   updateTicket: (id, data) => request(`/tickets/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  printTicket: (ticketId, printToken) => request("/printer/jobs", {
+    method: "POST",
+    body: JSON.stringify({ ticketId, printToken }),
+  }),
+  getPrinterStatus: () => request("/printer/status"),
 
   // ---- notifications ----
   getNotifications: () => request("/notifications"),
