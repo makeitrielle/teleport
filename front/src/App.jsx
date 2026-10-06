@@ -176,11 +176,15 @@ function GlobalStyle() {
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; overflow-x: hidden; max-width: 100%; }
       @media print {
-        @page { size: 80mm auto; margin: 3mm; }
+        /* 58 mm receipt roll, with a 48 mm printable ticket area. */
+        @page { size: 58mm auto; margin: 0; }
         body * { visibility: hidden !important; }
         .ticket-print-area, .ticket-print-area * { visibility: visible !important; }
-        .ticket-print-area { position: absolute !important; left: 0 !important; top: 0 !important; width: 74mm !important; margin: 0 !important; }
-        .ticket-print-card { width: 74mm !important; padding: 3mm !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; color: #111 !important; background: #fff !important; font-size: 10pt !important; }
+        .ticket-print-area { position: absolute !important; left: 0 !important; top: 0 !important; width: 48mm !important; margin: 0 !important; }
+        .ticket-print-card { width: 48mm !important; max-width: 48mm !important; padding: 2mm !important; margin: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; color: #111 !important; background: #fff !important; font-size: 8pt !important; }
+        .ticket-print-card > div[style*="grid-template-columns"] { grid-template-columns: 16mm minmax(0, 1fr) !important; gap: 1mm !important; }
+        .ticket-print-card img { width: 34mm !important; height: 34mm !important; }
+        .ticket-print-card > div[style*="width: 144px"] { width: 36mm !important; height: 36mm !important; }
         .ticket-print-card > div { break-inside: avoid; }
         .ticket-no-print { display: none !important; }
       }
