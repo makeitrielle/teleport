@@ -129,20 +129,20 @@ function DropoffMapClick({ coords, onSelect }) {
 /* ---------------------------------- THEME ---------------------------------- */
 
 const C = {
-  // Jasper Jean's bus livery: red body panels, warm yellow, white, and charcoal.
-  orange: "#CE4026",
-  orangeDeep: "#A92F21",
-  orangeSoft: "#FFE8B5",
-  yellow: "#F2B62B",
-  ink: "#14162B",
-  panel: "#1B1E3B",
-  panel2: "#242850",
-  cream: "#FFF2DE",
-  card: "#FFF8EC",
-  line: "#D8C9B2",
-  text: "#25282C",
-  sub: "#55595F",
-  subDark: "#4B5056",
+  // Jasper Jean's amber and red-orange, softened for long kiosk/mobile sessions.
+  orange: "#C96A2B",
+  orangeDeep: "#98451F",
+  orangeSoft: "#EAD2AC",
+  yellow: "#D5A53B",
+  ink: "#292B32",
+  panel: "#373941",
+  panel2: "#484A52",
+  cream: "#EEE7DA",
+  card: "#F7F2E9",
+  line: "#D4C7B3",
+  text: "#252A32",
+  sub: "#5D6672",
+  subDark: "#555D68",
   available: "#1D56B3",
   booked: "#C73232",
   success: "#16753A",
@@ -223,7 +223,7 @@ function GlobalStyle() {
           max-width: 1280px;
           margin: 0 auto;
           min-height: 100vh;
-          background: #fff;
+          background: ${C.card};
           box-shadow: 0 0 0 1px ${C.line};
         }
         .desktopSidebar { display: flex !important; }
@@ -251,39 +251,68 @@ function GlobalStyle() {
       ::-webkit-scrollbar { width:6px; height:6px; }
       ::-webkit-scrollbar-thumb { background:#00000022; border-radius:4px; }
 
+      .authLayout { width:min(100%, 1260px); display:grid; grid-template-columns:minmax(220px,1fr) minmax(360px,470px) minmax(210px,1fr); align-items:center; gap:clamp(20px,4vw,58px); }
+      .authIntro { min-width:0; }
+      .authIntro h1 { margin:18px 0 8px; color:${C.text}; font-size:clamp(30px,4vw,48px); line-height:1.08; letter-spacing:-.04em; }
+      .authIntro p { max-width:320px; color:${C.sub}; line-height:1.65; font-size:15px; }
+      .authBusArt { display:block; width:min(125%,500px); max-width:none; height:auto; margin:12px 0 0 -12%; object-fit:contain; mix-blend-mode:multiply; }
+      .authFeatures { display:grid; gap:20px; }
+      .authFeature { display:flex; gap:13px; align-items:center; color:${C.text}; font-size:13px; line-height:1.45; }
+      .authFeatureIcon { width:44px;height:44px; flex:none; display:grid;place-items:center;border-radius:50%;background:${C.orangeSoft};color:${C.orangeDeep}; }
+      .authCard { background:${C.card}; border:1px solid ${C.line}; border-radius:26px; padding:clamp(24px,3vw,38px); box-shadow:0 18px 50px rgba(68,49,29,.12); }
+      .passengerHero { margin:16px 24px 4px; min-height:176px; border-radius:22px; padding:24px 28px; position:relative; overflow:hidden; display:flex; align-items:center; background:linear-gradient(110deg,#E9D9BC 0%,#E6C78E 58%,#D88A4B 100%); }
+      .passengerHeroCopy { position:relative;z-index:1;max-width:58%; }
+      .passengerHero img { position:absolute;right:1%;bottom:-12%;width:min(43%,440px);height:118%;object-fit:contain;mix-blend-mode:multiply; }
+      .passengerHeroTitle { margin:4px 0;color:${C.text};font-size:clamp(24px,3vw,38px);line-height:1.1;font-weight:800; }
+
       /* Jasper Jean palette: red-orange and bus yellow over warm ivory. */
-      .teleportTheme [style*="background: rgb(20, 22, 43)"]:not(input):not(select):not(textarea):not(button) {
+      .teleportTheme [style*="background: rgb(41, 43, 50)"]:not(input):not(select):not(textarea):not(button) {
         background: radial-gradient(ellipse at 0% 100%, ${C.orange} 0%, transparent 44%), radial-gradient(ellipse at 100% 0%, ${C.yellow} 0%, transparent 42%), #FFF2DE !important;
         color: ${C.text} !important;
       }
-      .teleportTheme input[style*="background: rgb(20, 22, 43)"],
-      .teleportTheme select[style*="background: rgb(20, 22, 43)"],
-      .teleportTheme textarea[style*="background: rgb(20, 22, 43)"] {
+      .teleportTheme input[style*="background: rgb(41, 43, 50)"],
+      .teleportTheme select[style*="background: rgb(41, 43, 50)"],
+      .teleportTheme textarea[style*="background: rgb(41, 43, 50)"] {
         background: #FFFDF8 !important; color: ${C.text} !important; border-color: ${C.line} !important;
       }
-      .teleportTheme [style*="background: rgb(255, 255, 255)"] { background: #FFF8EC !important; }
-      .teleportTheme [style*="background: rgb(27, 30, 59)"] {
-        background: #FFF8EC !important;
+      .teleportTheme [style*="background: rgb(255, 255, 255)"] { background: ${C.card} !important; }
+      .teleportTheme [style*="background: rgb(55, 57, 65)"] {
+        background: ${C.card} !important;
         color: ${C.text} !important;
         border-color: ${C.line} !important;
         box-shadow: 0 10px 28px rgba(85, 48, 20, .07);
       }
-      .teleportTheme [style*="background: rgb(36, 40, 80)"] {
-        background: #FFF5D7 !important;
-        color: #604A1C !important;
+      .teleportTheme [style*="background: rgb(72, 74, 82)"] {
+        background: #EDE1C9 !important;
+        color: ${C.text} !important;
         border-color: ${C.line} !important;
       }
       .teleportTheme [style*="color: rgb(255, 255, 255)"]:not(button):not([style*="background: rgb(206, 64, 38)"]) {
         color: ${C.text} !important;
       }
-      .teleportTheme [style*="color: rgb(154, 160, 196)"] { color: ${C.sub} !important; }
-      .teleportTheme [style*="color: rgb(206, 64, 38)"] { color: ${C.orangeDeep} !important; }
-      .teleportTheme button[style*="background: rgb(36, 40, 80)"] { color: #604A1C !important; }
-      .teleportTheme button[style*="background: rgb(206, 64, 38)"] { color: #fff !important; }
+      .teleportTheme [style*="color: rgb(85, 93, 104)"] { color: ${C.sub} !important; }
+      .teleportTheme [style*="color: rgb(201, 106, 43)"] { color: ${C.orangeDeep} !important; }
+      .teleportTheme button[style*="background: rgb(72, 74, 82)"] { color: ${C.text} !important; }
+      .teleportTheme button[style*="background: rgb(201, 106, 43)"] { color: #fff !important; }
       .teleportTheme input, .teleportTheme select, .teleportTheme textarea { color: ${C.text} !important; }
       .teleportTheme input::placeholder, .teleportTheme textarea::placeholder { color: #62666C !important; opacity: 1; }
       .teleportTheme :focus-visible { outline: 3px solid ${C.yellow} !important; outline-offset: 2px; }
-      .teleportTheme .saSidebar { background: #FFF2DE !important; }
+      .teleportTheme .saSidebar { background: ${C.cream} !important; }
+
+      @media (max-width: 1023px) {
+        .authLayout { max-width:560px; grid-template-columns:1fr; gap:20px; }
+        .authIntro { text-align:center; }
+        .authIntro p { margin:8px auto; }
+        .authIntro .authBrand { justify-content:center; }
+        .authBusArt { width:min(78vw,340px); max-width:100%; max-height:170px; object-fit:contain; margin:0 auto -8px; }
+        .authFeatures { display:none; }
+      }
+      @media (max-width: 600px) {
+        .passengerHero { min-height:142px; margin:12px 14px 0; padding:18px; }
+        .passengerHeroCopy { max-width:67%; }
+        .passengerHero img { width:43%; height:100%; right:-2%; bottom:-3%; }
+        .homeCardGrid { padding-left:14px !important; padding-right:14px !important; }
+      }
 
       /* ---------------- RESPONSIVE: admin/kiosk dashboards ---------------- */
       @media (max-width: 860px) {
@@ -563,7 +592,7 @@ function BottomNav({ active, onChange }) {
     { id: "profile", label: "Profile", icon: <User size={20} /> },
   ];
   return (
-    <div style={{ display: "flex", background: "#fff", borderTop: `1px solid ${C.line}`,
+    <div style={{ display: "flex", background: C.card, borderTop: `1px solid ${C.line}`,
       padding: "10px 6px calc(10px + env(safe-area-inset-bottom))", position: "sticky", bottom: 0 }}>
       {items.map((it) => {
         const isActive = active === it.id;
@@ -593,7 +622,7 @@ function DesktopSidebar({ active, onChange }) {
   ];
   return (
     <div className="desktopSidebar" style={{ display: "none", width: 240, flexShrink: 0,
-      background: "#fff", borderRight: `1px solid ${C.line}`, padding: "28px 16px",
+      background: C.card, borderRight: `1px solid ${C.line}`, padding: "28px 16px",
       flexDirection: "column", gap: 4 }}>
       <div style={{ padding: "4px 10px 26px" }}><Logo scale={0.62} /></div>
       {items.map((it) => {
@@ -614,7 +643,7 @@ function DesktopSidebar({ active, onChange }) {
 
 function HomeCard({ icon, iconBg, iconColor, title, subtitle, onClick }) {
   return (
-    <button onClick={onClick} style={{ width: "100%", textAlign: "left", background: "#fff",
+    <button onClick={onClick} style={{ width: "100%", textAlign: "left", background: C.card,
       border: `1px solid ${C.line}`, borderRadius: 20, padding: 18, display: "flex",
       alignItems: "center", gap: 14, cursor: "pointer", boxShadow: "0 6px 18px rgba(20,22,43,0.06)" }}>
       <IconBadge icon={icon} bg={iconBg} color={iconColor} size={22} />
@@ -627,15 +656,19 @@ function HomeCard({ icon, iconBg, iconColor, title, subtitle, onClick }) {
   );
 }
 
-function PassengerHome({ buses, goto, passengerName, myTicket }) {
+function PassengerHome({ buses, goto, passengerName, myTicket, onNotifications }) {
   const trackedBus = buses[0];
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
       <PassengerHeader />
-      <div style={{ padding: "18px 18px 8px" }}>
-        <div style={{ fontSize: 13, color: C.sub }}>Good day,</div>
-        <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 19, color: C.text }}>{passengerName}</div>
-      </div>
+      <section className="passengerHero">
+        <div className="passengerHeroCopy">
+          <div style={{ fontSize: 15, color: C.sub }}>Good day,</div>
+          <div className="passengerHeroTitle">{passengerName}!</div>
+          <div style={{ color: C.sub, fontSize: 13 }}>Here’s what’s happening with your bus and travel today.</div>
+        </div>
+        <img src="/jasper-jean-bus.png" alt="Jasper Jean bus" />
+      </section>
       <div className="homeCardGrid" style={{ padding: "10px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
         <HomeCard icon={<MapPin />} iconBg={C.orangeSoft} iconColor={C.orangeDeep}
           title="MAPS" subtitle={trackedBus?.status === "active" ? "Your bus is live right now" : "View the live route"} onClick={() => goto("map")} />
@@ -647,6 +680,14 @@ function PassengerHome({ buses, goto, passengerName, myTicket }) {
         <HomeCard icon={<RouteIcon />} iconBg="#E8F9EE" iconColor={C.success}
           title="TRIP SCHEDULE" subtitle="View routes and stop times" onClick={() => goto("schedule")} />
       </div>
+      <button onClick={onNotifications} style={{ margin: "2px 24px 18px", padding: "16px 18px", borderRadius: 18,
+        border: `1px solid ${C.line}`, background: "#EDE1C9", display: "flex", alignItems: "center", gap: 14,
+        textAlign: "left", cursor: "pointer", color: C.text }}>
+        <IconBadge icon={<Bell />} bg={C.orangeSoft} color={C.orangeDeep} size={21} />
+        <span style={{ flex: 1 }}><strong style={{ display: "block", fontSize: 14 }}>Stay updated</strong>
+          <span style={{ color: C.sub, fontSize: 12 }}>See bus arrival and route notifications.</span></span>
+        <span style={{ color: C.orangeDeep, fontWeight: 700, fontSize: 12 }}>View ›</span>
+      </button>
     </div>
   );
 }
@@ -1252,7 +1293,8 @@ function PassengerApp({ shared, onLogout, passengerName, previewMode }) {
     else if (screen === "seats") body = <SeatScreen buses={buses} goto={goto} />;
     else if (screen === "schedule") body = <ScheduleScreen routes={routes} goto={goto} />;
     else if (screen === "ticket") body = <TicketScanScreen buses={buses} tickets={tickets} setTickets={setTickets} myTicket={myTicket} setMyTicket={setMyTicket} goto={goto} />;
-    else body = <PassengerHome buses={buses} goto={goto} passengerName={passengerName} myTicket={myTicket} />;
+    else body = <PassengerHome buses={buses} goto={goto} passengerName={passengerName} myTicket={myTicket}
+      onNotifications={() => setTab("notif")} />;
   } else if (tab === "activity") body = <ActivityScreen activity={activity} />;
   else if (tab === "notif") body = <NotifScreen notifications={notifications} locationAlertsEnabled={shared.locationAlertsEnabled}
     locationStatus={shared.locationStatus} onEnableAlerts={shared.enableLocationAlerts} onDisableAlerts={shared.disableLocationAlerts} />;
@@ -1639,7 +1681,7 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
       const result = await api.printTicket(ticket.id, ticket.printToken);
       setPrinterSent(true);
       setTicket((previous) => ({ ...previous, printToken: null }));
-      setPrinterMessage(result.message || "Ticket sent to the XP-58 printer.");
+      setPrinterMessage(result.message || "Ticket sent to the printer.");
     } catch (error) {
       setPrinterMessage(error.message || "Could not reach the kiosk printer.");
     } finally {
@@ -1845,7 +1887,7 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
           {printerMessage && <div role="status" aria-live="polite" className="ticket-no-print" style={{ marginTop: 12, color: printerMessage.includes("sent") ? "#4ADE80" : "#FDBA74", textAlign: "center", fontSize: 12 }}>{printerMessage}</div>}
           <button className="ticket-no-print" onClick={printKioskTicket} disabled={printing || printerSent} style={{ width: "100%", marginTop: 18, background: C.orange, border: "none",
             color: "#fff", borderRadius: 14, padding: "13px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
-            {printing ? "Sending to XP-58…" : printerSent ? "Ticket sent to XP-58" : ticket.printToken ? "Print ticket on XP-58" : "Print ticket"}
+            {printing ? "Sending to printer…" : printerSent ? "Ticket sent to printer" : "Print ticket"}
           </button>
           {printerMessage && !printerMessage.includes("sent") && <button className="ticket-no-print" onClick={() => window.print()} style={{ width: "100%", marginTop: 8, background: C.panel2, border: "none",
             color: "#fff", borderRadius: 14, padding: "11px 0", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>
@@ -2499,11 +2541,18 @@ function PassengerAuthScreen({ onLogin, onRegister, onForgotPassword }) {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: `radial-gradient(ellipse at 0% 100%, ${C.orange} 0%, transparent 44%), radial-gradient(ellipse at 100% 0%, ${C.yellow} 0%, transparent 42%), ${C.cream}`, fontFamily: FONT_BODY,
-      display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ width: "100%", maxWidth: 360 }}>
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 22 }}><Logo scale={1.1} /></div>
-        <div style={{ background: "#fff", borderRadius: 24, padding: 26 }}>
+    <div style={{ minHeight: "100vh", background: `radial-gradient(ellipse at 8% 92%, #E5D4B8 0%, transparent 38%), radial-gradient(ellipse at 92% 8%, #E8D9BC 0%, transparent 34%), ${C.cream}`, fontFamily: FONT_BODY,
+      display: "flex", alignItems: "center", justifyContent: "center", padding: "clamp(18px,4vw,48px)" }}>
+      <div className="authLayout">
+        <section className="authIntro">
+          <div className="authBrand" style={{ display: "flex", alignItems: "center" }}>
+            <span style={{ color: C.orangeDeep, fontFamily: FONT_DISPLAY, fontSize: 29, fontWeight: 800, letterSpacing: "-.045em" }}>TELE-PORT</span>
+          </div>
+          <h1>{mode === "login" ? <>Welcome <span style={{ color: C.orange }}>back!</span></> : mode === "register" ? <>Create your <span style={{ color: C.orange }}>account</span></> : <>Reset your <span style={{ color: C.orange }}>password</span></>}</h1>
+          <p>{mode === "login" ? "Sign in to your account and make your Jasper Jean trip easier." : mode === "register" ? "Create an account to follow your bus, check seats, and keep your trip details together." : "Enter your email and we’ll send you a link to reset your password."}</p>
+          <img className="authBusArt" src="/jasper-jean-bus.png" alt="Jasper Jean bus" />
+        </section>
+        <div className="authCard">
           {mode !== "forgot" && <div style={{ display: "flex", background: C.cream, borderRadius: 12, padding: 3, marginBottom: 20 }}>
             <button onClick={() => { setMode("login"); setError(""); }} style={{ flex: 1, padding: "9px 0", borderRadius: 9,
               border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700,
@@ -2552,8 +2601,15 @@ function PassengerAuthScreen({ onLogin, onRegister, onForgotPassword }) {
             </div>
           )}
         </div>
-
-
+        <aside className="authFeatures" aria-label="Tele-port features">
+          {[
+            [<MapPin size={20} />, "Real-time location", "Follow your bus along the route."],
+            [<Armchair size={20} />, "Seat availability", "Check current seat information."],
+            [<Bell size={20} />, "Trip notifications", "See updates about your trip."],
+          ].map(([icon, title, detail]) => <div className="authFeature" key={title}>
+            <div className="authFeatureIcon">{icon}</div><div><strong>{title}</strong><br /><span style={{ color:C.sub }}>{detail}</span></div>
+          </div>)}
+        </aside>
       </div>
     </div>
   );
@@ -2586,9 +2642,10 @@ function PassengerEmailAction({ type, onComplete }) {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: `linear-gradient(180deg, ${C.ink}, #0D0E1E)`, fontFamily: FONT_BODY,
+    <div style={{ minHeight: "100vh", background: `radial-gradient(ellipse at 8% 92%, #E5D4B8 0%, transparent 38%), ${C.cream}`, fontFamily: FONT_BODY,
       display: "grid", placeItems: "center", padding: 24 }}>
-      <div style={{ width: "100%", maxWidth: 380, background: "#fff", borderRadius: 24, padding: 26 }}>
+      <div style={{ width: "100%", maxWidth: 380, background: C.card, border: `1px solid ${C.line}`, borderRadius: 24, padding: 26,
+        boxShadow: "0 18px 50px rgba(68,49,29,.12)" }}>
         <div style={{ textAlign: "center", marginBottom: 18 }}><Logo scale={0.9} /></div>
         <h2 style={{ color: C.text, fontSize: 19, textAlign: "center" }}>{type === "verify" ? "Confirm your email" : "Choose a new password"}</h2>
         {type === "reset" && !message && <div style={{ display: "grid", gap: 12 }}>
