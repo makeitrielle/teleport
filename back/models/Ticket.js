@@ -14,6 +14,7 @@ const TicketSchema = new mongoose.Schema(
       lon: { type: Number, min: -180, max: 180 },
     },
     dropoffAlerted: { type: Boolean, default: false },
+    distanceKm: { type: Number, min: 0 },
     fare: { type: Number, default: 0 },
     qrCode: { type: String, required: true }, // encoded ticket reference string
     printTokenHash: { type: String, select: false, default: null },

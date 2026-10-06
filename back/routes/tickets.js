@@ -18,9 +18,13 @@ router.get("/", async (req, res) => {
 
 // POST /api/tickets - dispense a new ticket (kiosk flow: pick seat -> pick drop-off)
 router.post("/", async (req, res) => {
-  const { busId, passengerId, seatId, standing = false, passengerType = "regular", from, to, fare, dropoffLocation } = req.body;
+  const { busId, passengerId, seatId, standing = false, passengerType = "regular", from, to, distanceKm, dropoffLocation } = req.body;
   if (!passengerTypes.has(passengerType)) {
     return res.status(400).json({ error: "Passenger type must be regular, student, pwd, or senior." });
+  }
+  const distance = Number(distanceKm);
+  if (!Number.isFinite(distance) || distance <= 0 || distance > 600) {
+    return res.status(400).json({ error: "Choose a valid fare point between 0 and 600 km." });
   }
   const lat = Number(dropoffLocation?.lat);
   const lon = Number(dropoffLocation?.lon);
@@ -28,6 +32,8 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "A valid drop-off pin is required" });
   }
   const normalizedDropoff = { lat, lon };
+  const rate = passengerType === "regular" ? 2.45 : 1.96;
+  const calculatedFare = Math.round((rate * distance + Number.EPSILON) * 4) / 4;
 
   const bus = await Bus.findById(busId);
   if (!bus) return res.status(404).json({ error: "Bus not found" });
@@ -57,7 +63,8 @@ router.post("/", async (req, res) => {
     from,
     to,
     dropoffLocation: normalizedDropoff,
-    fare,
+    distanceKm: distance,
+    fare: calculatedFare,
     qrCode,
     printTokenHash,
   });

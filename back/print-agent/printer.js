@@ -66,6 +66,7 @@ function makeReceipt(ticket, cutAfterPrint) {
     ["RIDE:", ticket.ride],
     ["FROM:", ticket.from],
     ["TO:", ticket.to],
+    ticket.distanceKm ? ["DISTANCE:", `${Number(ticket.distanceKm).toFixed(1)} KM`] : null,
   ].filter(Boolean);
 
   for (const [label, value] of rows) {

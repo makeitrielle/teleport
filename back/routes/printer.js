@@ -43,6 +43,7 @@ router.post("/jobs", async (req, res) => {
       from: ticket.from || "PITX",
       to: ticket.to || "SM Pala-Pala",
       fare: Number(ticket.fare || 0),
+      distanceKm: Number(ticket.distanceKm || 0),
       issuedAt: ticket.createdAt,
       scanUrl: scanUrl.toString(),
     };
