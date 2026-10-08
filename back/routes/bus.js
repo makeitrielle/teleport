@@ -97,9 +97,9 @@ router.get("/dropoffs", async (req, res) => {
   if (!bus) return res.status(404).json({ error: "No bus is configured yet" });
   const tickets = await Ticket.find({ busId: bus._id, status: "active", dropoffAlerted: false,
     "dropoffLocation.lat": { $type: "number" }, "dropoffLocation.lon": { $type: "number" } })
-    .select("_id dropoffLocation to").lean();
+    .select("_id dropoffLocation to from routeTo").lean();
   res.json(tickets.map((ticket) => ({ id: String(ticket._id), lat: ticket.dropoffLocation.lat,
-    lon: ticket.dropoffLocation.lon, label: ticket.to, clip: voiceClipFor(ticket.to) })));
+    lon: ticket.dropoffLocation.lon, label: ticket.to, clip: voiceClipFor(ticket.to, ticket.from, ticket.routeTo) })));
 });
 
 router.post("/dropoffs/:ticketId/alerted", async (req, res) => {

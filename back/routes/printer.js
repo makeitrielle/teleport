@@ -29,13 +29,13 @@ router.post("/jobs", async (req, res) => {
   if (!ticket) return res.status(403).json({ error: "This ticket was already printed or its print authorization is invalid." });
 
   try {
-    const bus = await Bus.findById(ticket.busId).select("busId name driver").lean();
+    const bus = await Bus.findById(ticket.busId).select("busId name driver to").lean();
     const appUrl = (process.env.PUBLIC_APP_URL || process.env.APP_URL || "https://www.teleport-app.online").replace(/\/$/, "");
     const scanUrl = new URL("/", appUrl);
     scanUrl.searchParams.set("ticket", ticket.qrCode);
     const printData = {
       ticketNumber: ticket.qrCode,
-      route: `${ticket.from || "PITX"} - ${ticket.to || "SM Pala-Pala"}`,
+      route: `${ticket.from || "PITX"} - ${ticket.routeTo || bus?.to || "SM Pala-Pala"}`,
       busNumber: bus?.busId || bus?.name || "BUS-001",
       driver: bus?.driver || "",
       passengerType: ticket.passengerType || "regular",

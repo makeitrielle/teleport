@@ -2,6 +2,7 @@ import express from "express";
 import crypto from "crypto";
 import Ticket from "../models/Ticket.js";
 import Bus from "../models/Bus.js";
+import { farePointForRoute } from "../../shared/fareMatrix.js";
 
 const router = express.Router();
 const passengerTypes = new Set(["regular", "student", "pwd", "senior"]);
@@ -18,25 +19,26 @@ router.get("/", async (req, res) => {
 
 // POST /api/tickets - dispense a new ticket (kiosk flow: pick seat -> pick drop-off)
 router.post("/", async (req, res) => {
-  const { busId, passengerId, seatId, standing = false, passengerType = "regular", from, to, distanceKm, dropoffLocation } = req.body;
+  const { busId, passengerId, seatId, standing = false, passengerType = "regular", from, routeTo, to, distanceKm, dropoffLocation } = req.body;
   if (!passengerTypes.has(passengerType)) {
     return res.status(400).json({ error: "Passenger type must be regular, student, pwd, or senior." });
   }
   const distance = Number(distanceKm);
-  if (!Number.isFinite(distance) || distance <= 0 || distance > 600) {
-    return res.status(400).json({ error: "Choose a valid fare point between 0 and 600 km." });
-  }
   const lat = Number(dropoffLocation?.lat);
   const lon = Number(dropoffLocation?.lon);
   if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) {
     return res.status(400).json({ error: "A valid drop-off pin is required" });
   }
   const normalizedDropoff = { lat, lon };
-  const rate = passengerType === "regular" ? 2.45 : 1.96;
-  const calculatedFare = Math.round((rate * distance + Number.EPSILON) * 4) / 4;
-
   const bus = await Bus.findById(busId);
   if (!bus) return res.status(404).json({ error: "Bus not found" });
+  const ticketFrom = from || bus.from;
+  const ticketRouteTo = routeTo || bus.to;
+  const farePoint = farePointForRoute(ticketFrom, ticketRouteTo, to);
+  if (!farePoint || !Number.isFinite(distance) || distance !== farePoint.distanceKm) {
+    return res.status(400).json({ error: "Choose a valid drop-off from this route's fare matrix." });
+  }
+  const calculatedFare = passengerType === "regular" ? farePoint.regular : farePoint.discounted;
 
   if (standing) {
     const hasAvailableSeat = bus.seats.some((s) => s.sensor !== "fault" && Number(s.id) <= 5 && s.status !== "booked");
@@ -60,7 +62,8 @@ router.post("/", async (req, res) => {
     passengerType,
     seatId,
     standing,
-    from,
+    from: ticketFrom,
+    routeTo: ticketRouteTo,
     to,
     dropoffLocation: normalizedDropoff,
     distanceKm: distance,

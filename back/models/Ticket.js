@@ -8,6 +8,7 @@ const TicketSchema = new mongoose.Schema(
     seatId: { type: Number, default: null },
     standing: { type: Boolean, default: false },
     from: { type: String, required: true },
+    routeTo: { type: String, default: "" },
     to: { type: String, required: true },
     dropoffLocation: {
       lat: { type: Number, min: -90, max: 90 },
