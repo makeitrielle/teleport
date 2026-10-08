@@ -414,8 +414,11 @@ function normalizeBusLayout(bus) {
   const seats = Array.from({ length: 61 }, (_, index) => {
     const id = index + 1;
     const existing = byId.get(id);
+    const updatedAt = existing?.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+    const ageMs = Date.now() - updatedAt;
+    const recentlyReported = Number.isFinite(updatedAt) && ageMs >= -60000 && ageMs <= SENSOR_STALE_AFTER_MS;
     return existing
-      ? { ...existing, id, sensor: id <= 5 && existing.sensor !== "fault" ? "ok" : "fault" }
+      ? { ...existing, id, sensor: id <= 5 && existing.sensor !== "fault" && recentlyReported ? "ok" : "fault" }
       : { id, status: "available", sensor: "fault", updatedAt: Date.now() };
   });
   return { ...bus, from, to, stops: [from, to], totalSeats: 61, seats };
@@ -451,6 +454,7 @@ const seedNotifications = [
 ];
 
 const ROUTE_ENDPOINTS = ["PITX", "SM Pala-Pala"];
+const SENSOR_STALE_AFTER_MS = 90000;
 function normalizeRoutes(routes) {
   const saved = routes[0] || {};
   return [{ ...saved, id: saved.id ?? 1, name: "PITX ↔ SM Pala-Pala", stops: ROUTE_ENDPOINTS }];
@@ -831,6 +835,7 @@ function SeatScreen({ buses, goto }) {
   const counts = seatCounts(bus);
   const rows = buildSeatRows(bus.seats);
   const seatColor = (seat) => !isSeatSensorOnline(seat) ? C.fault : seat.status === "booked" ? C.booked : C.available;
+  const reportingCount = bus.seats.filter(isSeatSensorOnline).length;
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
@@ -845,9 +850,11 @@ function SeatScreen({ buses, goto }) {
       <div style={{ margin: "0 14px", background: "#fff", border: `1px solid ${C.line}`, borderRadius: 24,
         padding: "18px 18px 18px", boxShadow: "0 6px 18px rgba(20,22,43,0.06)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 14 }}>
-          <span style={{ width: 7, height: 7, borderRadius: 999, background: C.success,
-            animation: "jj-pulse 1s ease-in-out infinite" }} />
-          <span style={{ fontSize: 11.5, fontWeight: 700, color: C.sub, letterSpacing: 0.5 }}>LIVE FROM SEAT SENSORS</span>
+          <span style={{ width: 7, height: 7, borderRadius: 999, background: reportingCount ? C.success : C.orange,
+            animation: reportingCount ? "jj-pulse 1s ease-in-out infinite" : "none" }} />
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: C.sub, letterSpacing: 0.5 }}>
+            {reportingCount ? `${reportingCount} OF 5 SENSORS REPORTING` : "WAITING FOR SENSOR UPDATES"}
+          </span>
         </div>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
           <div style={{ width: 46, height: 30, borderRadius: "16px 16px 6px 6px", background: C.ink,
