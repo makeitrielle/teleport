@@ -7,6 +7,7 @@
 import express from "express";
 import Bus from "../models/Bus.js";
 import Ticket from "../models/Ticket.js";
+import { voiceClipFor } from "../voiceClips.js";
 
 const router = express.Router();
 
@@ -26,7 +27,7 @@ router.get("/current", async (req, res) => {
   res.json(bus);
 });
 
-// POST /api/bus/location - the ESP32's GPS fix, sent over 4G/LTE
+// POST /api/bus/location - the ESP32's onboard GPS fix, sent over WiFi
 // Body: { busId, latitude, longitude, speed, timestamp, progress?, etaMin?, status? }
 // latitude/longitude/speed/timestamp are stored as-is in `location`.
 // progress/etaMin/status are optional - the firmware already computes
@@ -37,10 +38,20 @@ router.post("/location", async (req, res) => {
   if (!bus) return res.status(404).json({ error: "No bus is configured yet" });
 
   const { latitude, longitude, speed, timestamp, progress, etaMin, status } = req.body;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+      latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+    return res.status(400).json({ error: "A valid numeric GPS latitude and longitude are required" });
+  }
+  if (speed !== undefined && (!Number.isFinite(speed) || speed < 0)) {
+    return res.status(400).json({ error: "Speed must be a non-negative number" });
+  }
+  if (timestamp !== undefined && !Number.isFinite(Date.parse(timestamp))) {
+    return res.status(400).json({ error: "Timestamp must be a valid date" });
+  }
 
   bus.location = {
-    lat: latitude ?? bus.location?.lat ?? null,
-    lon: longitude ?? bus.location?.lon ?? null,
+    lat: latitude,
+    lon: longitude,
     speed: speed ?? bus.location?.speed ?? 0,
     updatedAt: timestamp ? new Date(timestamp) : new Date(),
   };
@@ -88,7 +99,7 @@ router.get("/dropoffs", async (req, res) => {
     "dropoffLocation.lat": { $type: "number" }, "dropoffLocation.lon": { $type: "number" } })
     .select("_id dropoffLocation to").lean();
   res.json(tickets.map((ticket) => ({ id: String(ticket._id), lat: ticket.dropoffLocation.lat,
-    lon: ticket.dropoffLocation.lon, label: ticket.to })));
+    lon: ticket.dropoffLocation.lon, label: ticket.to, clip: voiceClipFor(ticket.to) })));
 });
 
 router.post("/dropoffs/:ticketId/alerted", async (req, res) => {
