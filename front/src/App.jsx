@@ -12,6 +12,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { BrowserQRCodeReader } from "@zxing/browser";
 import { api, withId, withIds } from "./api";
+import { FARE_MATRIX, fareDirectionForRoute, fareForRoute } from "../../shared/fareMatrix.js";
 
 /* Route stops are resolved from the bus configuration. Do not hard-code unverified coordinates. */
 const ROUTE_STOPS = [];
@@ -61,20 +62,26 @@ function buildFarePoints(coords, originName, destinationName) {
   const { totalMeters } = pointAlongRoute(coords, 1);
   const totalKm = totalMeters / 1000;
   if (!Number.isFinite(totalKm) || totalKm <= 0) return [];
-  const points = [];
-  for (let km = 5; km < totalKm - 0.25; km += 5) {
-    const { point } = pointAlongRoute(coords, km / totalKm);
-    points.push({ id: `km-${km}`, label: `${km} km from ${originName}`, distanceKm: km, location: { lat: point[0], lon: point[1] } });
-  }
-  const end = coords[coords.length - 1];
-  points.push({ id: "destination", label: `${destinationName} · ${totalKm.toFixed(1)} km`, distanceKm: totalKm, location: { lat: end[0], lon: end[1] } });
-  return points;
+  const direction = fareDirectionForRoute(originName, destinationName);
+  const matrix = direction ? FARE_MATRIX[direction] : [];
+  const routeEndKm = matrix[matrix.length - 1]?.distanceKm;
+  if (!routeEndKm) return [];
+  return matrix.map((entry, index) => {
+    const fraction = entry.distanceKm / routeEndKm;
+    const { point } = pointAlongRoute(coords, fraction);
+    return {
+      id: `${direction}-${index}`,
+      label: entry.landmark,
+      distanceKm: entry.distanceKm,
+      location: { lat: point[0], lon: point[1] },
+      regularFare: entry.regular,
+      discountedFare: entry.discounted,
+    };
+  });
 }
 
-function calculateFare(passengerType, distanceKm) {
-  const rate = passengerType === "regular" ? 2.45 : 1.96;
-  // LTFRB fare guide: add-on rate per km, rounded to the nearest ₱0.25.
-  return Math.round((rate * Number(distanceKm) + Number.EPSILON) * 4) / 4;
+function calculateFare(passengerType, landmark, from, to) {
+  return fareForRoute(from, to, landmark, passengerType) ?? 0;
 }
 
 // Fetches the real driving route geometry from OSRM's public demo server
@@ -947,7 +954,7 @@ function TicketScanScreen({ buses, tickets, setTickets, myTicket, setMyTicket, g
           const busData = buses.find((b) => String(b.id) === busId);
           const stopIndex = (busData?.stops || []).findIndex((s) => (typeof s === "string" ? s : s.name) === raw.to);
           found = { id: String(raw._id || raw.id), code: raw.qrCode, busId, busNumber: busData?.busId,
-            busName: busData?.name || "Bus", busRouteTo: busData?.to, driver: busData?.driver, fare: raw.fare, from: raw.from,
+            busName: busData?.name || "Bus", busRouteTo: raw.routeTo || busData?.to, routeTo: raw.routeTo || busData?.to, driver: busData?.driver, fare: raw.fare, from: raw.from,
             seat: raw.standing ? "Standing" : raw.seatId, standing: raw.standing, passengerType: raw.passengerType || "regular", dropoff: raw.to,
             dropoffLocation: raw.dropoffLocation,
             issuedAt: raw.createdAt, dropoffIndex: Math.max(0, stopIndex), totalStops: busData?.stops?.length || 1, claimed: true };
@@ -1471,20 +1478,20 @@ function KioskWelcomeScreen({ onBegin }) {
     addLog("Location ping sent");
   }
 
-  async function issueTicket(seatId, dropoff, dropoffIndex, dropoffLocation, standing = false, passengerType = "regular", distanceKm, dropoffPointCount) {
+  async function issueTicket(seatId, dropoff, dropoffIndex, dropoffLocation, standing = false, passengerType = "regular", distanceKm, dropoffPointCount, routeFrom = bus?.from, routeTo = bus?.to) {
     if (!bus) return null;
 
     if (!usingMock) {
       try {
         const created = withId(await api.createTicket({
-          busId: bus.id, seatId, standing, passengerType, from: bus.from, to: dropoff, dropoffLocation, distanceKm,
+          busId: bus.id, seatId, standing, passengerType, from: routeFrom, routeTo, to: dropoff, dropoffLocation, distanceKm,
         }));
         // reflect the now-booked seat locally so the kiosk UI updates immediately
         if (!standing) setBuses((prev) => prev.map((b) => b.id !== bus.id ? b : {
           ...b, seats: b.seats.map((s) => s.id !== seatId ? s : { ...s, status: "booked", updatedAt: Date.now() }),
         }));
         const ticket = { id: created.id, code: created.qrCode, busId: bus.id, busNumber: bus.busId, busName: bus.name,
-          busRouteTo: bus.to, driver: bus.driver, fare: created.fare, from: bus.from, issuedAt: created.createdAt,
+          busRouteTo: routeTo, routeTo, driver: bus.driver, fare: created.fare, from: routeFrom, issuedAt: created.createdAt,
           printToken: created.printToken,
           seat: standing ? "Standing" : seatId, standing, passengerType, dropoff, dropoffIndex, dropoffLocation, distanceKm: created.distanceKm,
           totalStops: dropoffPointCount, claimed: false, notified: false };
@@ -1498,8 +1505,8 @@ function KioskWelcomeScreen({ onBegin }) {
     }
 
     const code = `JJ-${Date.now().toString(36).toUpperCase()}`;
-    const ticket = { id: Date.now(), code, busId: bus.id, busNumber: bus.busId, busName: bus.name, busRouteTo: bus.to,
-      driver: bus.driver, fare: calculateFare(passengerType, distanceKm), from: bus.from, issuedAt: Date.now(), seat: standing ? "Standing" : seatId, standing, passengerType,
+    const ticket = { id: Date.now(), code, busId: bus.id, busNumber: bus.busId, busName: bus.name, busRouteTo: routeTo, routeTo,
+      driver: bus.driver, fare: calculateFare(passengerType, dropoff, routeFrom, routeTo), from: routeFrom, issuedAt: Date.now(), seat: standing ? "Standing" : seatId, standing, passengerType,
       dropoff, dropoffIndex, dropoffLocation, distanceKm, totalStops: dropoffPointCount, claimed: false, notified: false };
     if (!standing) setBuses((prev) => prev.map((b) => b.id !== bus.id ? b : {
       ...b, seats: b.seats.map((s) => s.id !== seatId ? s : { ...s, status: "booked", updatedAt: Date.now() }),
@@ -1671,6 +1678,8 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
   const [dropoffLocation, setDropoffLocation] = useState(null);
   const [dropoffName, setDropoffName] = useState("");
   const [dropoffDistanceKm, setDropoffDistanceKm] = useState(null);
+  const [routeFrom, setRouteFrom] = useState(bus.from);
+  const [routeTo, setRouteTo] = useState(bus.to);
   const [routeCoords, setRouteCoords] = useState(null);
   const [locationError, setLocationError] = useState("");
   const [ticket, setTicket] = useState(null);
@@ -1702,10 +1711,16 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
   const hasAvailableSeat = bus.seats.some((seat) => isSeatSensorOnline(seat) && seat.status !== "booked");
   useEffect(() => {
     let alive = true;
-    fetchConfiguredBusRoute(bus).then((route) => { if (alive) setRouteCoords(route.coords); }).catch((err) => { if (alive) setLocationError(err.message); });
+    setRouteCoords(null);
+    setLocationError("");
+    setDropoffIdx(null);
+    setDropoffLocation(null);
+    setDropoffName("");
+    setDropoffDistanceKm(null);
+    fetchConfiguredBusRoute({ ...bus, from: routeFrom, to: routeTo }).then((route) => { if (alive) setRouteCoords(route.coords); }).catch((err) => { if (alive) setLocationError(err.message); });
     return () => { alive = false; };
-  }, []);
-  const farePoints = useMemo(() => buildFarePoints(routeCoords, bus.from, bus.to), [routeCoords, bus.from, bus.to]);
+  }, [routeFrom, routeTo]);
+  const farePoints = useMemo(() => buildFarePoints(routeCoords, routeFrom, routeTo), [routeCoords, routeFrom, routeTo]);
   function chooseFarePoint(point, index) {
     setDropoffIdx(index);
     setDropoffLocation(point.location);
@@ -1718,7 +1733,7 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
   function confirmSeat() { if (seatId || standing) setStep("passenger"); }
   async function confirmDropoff() {
     if (!dropoffLocation || !dropoffDistanceKm) return;
-    const t = await issueTicket(seatId, dropoffName, dropoffIdx, dropoffLocation, standing, passengerType, dropoffDistanceKm, farePoints.length);
+    const t = await issueTicket(seatId, dropoffName, dropoffIdx, dropoffLocation, standing, passengerType, dropoffDistanceKm, farePoints.length, routeFrom, routeTo);
     if (!t) return; // issuing failed; stay on this step so staff can retry
     setTicket(t);
     setStep("ticket");
@@ -1810,7 +1825,7 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
             })}
           </div>
           <div style={{ color: C.subDark, fontSize: 11.5, lineHeight: 1.45, marginBottom: 16 }}>
-            Student, senior, and PWD fares use the 20% discount in the fare guide. The operator must verify eligibility.
+            The printed discounted fare applies to students, seniors, and PWD passengers. The operator must verify eligibility.
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             <button onClick={() => setStep("seat")} style={{ flex: 1, background: C.panel2, border: "none", color: "#fff", borderRadius: 14, padding: "13px 0", fontWeight: 700, cursor: "pointer" }}>Back</button>
@@ -1825,8 +1840,19 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
             <div style={{ color: "#fff", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 19 }}>Where are you getting off?</div>
             <div style={{ color: C.subDark, fontSize: 12.5, marginTop: 4 }}>{PASSENGER_TYPES[passengerType]} · {standing ? "Standing" : `Seat ${seatId}`} · {bus.name}</div>
           </div>
+          <label style={{ display: "block", color: C.subDark, fontSize: 12, marginBottom: 8 }} htmlFor="fare-direction-select">
+            Travel direction
+          </label>
+          <select id="fare-direction-select" value={`${routeFrom}|${routeTo}`} onChange={(event) => {
+            const [nextFrom, nextTo] = event.target.value.split("|");
+            setRouteFrom(nextFrom);
+            setRouteTo(nextTo);
+          }} style={{ width: "100%", background: C.panel, border: "1px solid #454966", color: "#fff", borderRadius: 10, padding: "11px 12px", marginBottom: 12 }}>
+            <option value="PITX|SM Pala-Pala">PITX → SM Pala-Pala · Southbound</option>
+            <option value="SM Pala-Pala|PITX">SM Pala-Pala → PITX · Northbound</option>
+          </select>
           <label style={{ display: "block", color: C.subDark, fontSize: 12, marginBottom: 8 }} htmlFor="fare-point-select">
-            Choose a drop-off point along {bus.from} → {bus.to}.
+            Choose a drop-off point along {routeFrom} → {routeTo}.
           </label>
           <select id="fare-point-select" value={dropoffIdx ?? ""} onChange={(event) => {
             const index = Number(event.target.value);
@@ -1846,7 +1872,7 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
             </MapContainer> : <div style={{ height: "100%", display: "grid", placeItems: "center", background: C.panel, color: C.subDark }}>Loading route map...</div>}
           </div>
           <div style={{ color: dropoffLocation ? C.text : C.subDark, fontSize: 12, lineHeight: 1.5, marginBottom: 18 }}>
-            {dropoffLocation ? <><strong>{dropoffName}</strong><br />Distance: {dropoffDistanceKm.toFixed(1)} km · Fare: ₱{calculateFare(passengerType, dropoffDistanceKm).toFixed(2)}<br />Fare points follow the mapped route.</> : "Select a fare point from the list or tap a marked point on the map."}
+            {dropoffLocation ? <><strong>{dropoffName}</strong><br />Distance: {dropoffDistanceKm} km · Fare: ₱{calculateFare(passengerType, dropoffName, routeFrom, routeTo).toFixed(2)}<br />Fares follow the Jasper Jean fare matrix.</> : "Select a fare point from the list or tap a marked point on the map."}
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             <button onClick={() => setStep("seat")} style={{ flex: 1, background: C.panel2, border: "none", color: "#fff",

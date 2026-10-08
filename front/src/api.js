@@ -1,6 +1,7 @@
 // Thin fetch wrapper around the TELE-PORT backend REST API.
-// Base URL can be overridden with VITE_API_URL in a .env file (see .env.example).
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+// Set VITE_API_URL for a separately hosted API. Otherwise use the same host
+// as the site (production reverse proxy) and Vite's /api dev proxy locally.
+const BASE_URL = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {
