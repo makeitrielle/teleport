@@ -414,7 +414,7 @@ function normalizeBusLayout(bus) {
   const seats = Array.from({ length: 61 }, (_, index) => {
     const id = index + 1;
     const existing = byId.get(id);
-    const updatedAt = existing?.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+    const updatedAt = existing?.sensorUpdatedAt ? Number(existing.sensorUpdatedAt) : 0;
     const ageMs = Date.now() - updatedAt;
     const recentlyReported = Number.isFinite(updatedAt) && ageMs >= -60000 && ageMs <= SENSOR_STALE_AFTER_MS;
     return existing
@@ -1416,31 +1416,21 @@ function KioskWelcomeScreen({ onBegin }) {
     addLog(`Seat ${seatId} set manually (sensor offline)`);
   }
 
-  async function runDiagnostics() {
+  async function refreshSensorData() {
     if (!bus) return;
-    const faultySeats = bus.seats.filter((s) => s.id <= 5 && s.sensor === "fault");
-    const faultCount = faultySeats.length;
-
-    if (!usingMock && faultCount > 0) {
-      try {
-        // recalibrate each faulty seat's sensor via the API
-        let updatedBus = bus;
-        for (const s of faultySeats) {
-          updatedBus = withId(await api.updateSeat(bus.id, s.id, { sensor: "ok" }));
-        }
-        setBuses((prev) => prev.map((b) => (b.id !== bus.id ? b : { ...updatedBus })));
-        addLog(`Diagnostics complete — ${faultCount} sensor(s) recalibrated`);
-        return;
-      } catch (err) {
-        addLog(`Diagnostics failed: ${err.message}`);
-        return;
-      }
+    if (usingMock) {
+      addLog("Sensor check unavailable — backend disconnected; demo data is active.");
+      return;
     }
-
-    setBuses((prev) => prev.map((b) => b.id !== bus.id ? b : {
-      ...b, seats: b.seats.map((s) => ({ ...s, sensor: "ok" })),
-    }));
-    addLog(faultCount > 0 ? `Diagnostics complete — ${faultCount} sensor(s) recalibrated` : "Diagnostics complete — all sensors nominal");
+    try {
+      const updatedBuses = withIds(await api.getBuses()).map(normalizeBusLayout);
+      setBuses(updatedBuses);
+      const currentBus = updatedBuses.find((item) => String(item.id) === String(bus.id));
+      const reporting = currentBus?.seats.filter(isSeatSensorOnline).length || 0;
+      addLog(`${reporting}/5 seat sensors reported within the last 90 seconds.`);
+    } catch (err) {
+      addLog(`Sensor refresh failed: ${err.message}`);
+    }
   }
 
   async function toggleTrip() {
@@ -1567,13 +1557,13 @@ function KioskWelcomeScreen({ onBegin }) {
         <KioskTicketFlow bus={bus} issueTicket={issueTicket} onFinish={() => setMode("welcome")} />
       ) : (
         <KioskOperatorPanel bus={bus} log={log} toggleTrip={toggleTrip} pingLocation={pingLocation}
-          overrideSeat={overrideSeat} runDiagnostics={runDiagnostics} />
+          overrideSeat={overrideSeat} refreshSensorData={refreshSensorData} />
       )}
     </div>
   );
 }
 
-function KioskOperatorPanel({ bus, log, toggleTrip, pingLocation, overrideSeat, runDiagnostics }) {
+function KioskOperatorPanel({ bus, log, toggleTrip, pingLocation, overrideSeat, refreshSensorData }) {
   const counts = seatCounts(bus);
   const rows = buildSeatRows(bus.seats);
   return (
@@ -1624,12 +1614,12 @@ function KioskOperatorPanel({ bus, log, toggleTrip, pingLocation, overrideSeat, 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
             <div>
               <div style={{ color: "#fff", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 15 }}>Seat sensor manifest</div>
-              <div style={{ color: C.subDark, fontSize: 12, marginTop: 2 }}>Updates automatically · tap a grey seat to override</div>
-            </div>
-            <button onClick={runDiagnostics} style={{ background: C.panel2, border: "none", color: "#fff",
+        <div style={{ color: C.subDark, fontSize: 12, marginTop: 2 }}>Live state comes from Mega updates · tap a grey seat to override</div>
+      </div>
+            <button onClick={refreshSensorData} style={{ background: C.panel2, border: "none", color: "#fff",
               borderRadius: 10, padding: "8px 12px", fontSize: 11.5, fontWeight: 700, display: "flex",
               alignItems: "center", gap: 6, cursor: "pointer", whiteSpace: "nowrap" }}>
-              <RefreshCw size={13} /> Run diagnostics
+              <RefreshCw size={13} /> Refresh sensor data
             </button>
           </div>
           <div style={{ display: "flex", gap: 16, margin: "14px 0" }}>
