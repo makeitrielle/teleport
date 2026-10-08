@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1200" viewBox="0 0 1600 1200">
+<defs>
+  <style>
+    .title{font:700 34px Arial,sans-serif;fill:#12233f}.sub{font:16px Arial,sans-serif;fill:#52627a}
+    .section{font:700 22px Arial,sans-serif;fill:#12233f}.name{font:700 17px Arial,sans-serif;fill:#12233f}
+    .body{font:14px Arial,sans-serif;fill:#35445b}.small{font:12px Arial,sans-serif;fill:#52627a}
+    .pin{font:700 13px Arial,sans-serif;fill:#12233f}.card{fill:#fff;stroke:#d5deea;stroke-width:2}
+    .wire{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:4}
+  </style>
+  <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#2878d0"/></marker>
+  <marker id="arrowTeal" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#10a6a0"/></marker>
+</defs>
+<rect width="1600" height="1200" fill="#f3f6fb"/>
+<text x="48" y="58" class="title">TELE-PORT | 61-seat bus hardware</text>
+<text x="50" y="89" class="sub">Component overview and wiring schematic • Arduino Mega 2560 • four CD74HC4067 muxes • LILYGO T-SIM A7670E • DFPlayer Mini</text>
+
+<!-- component cards -->
+<text x="50" y="137" class="section">COMPONENTS USED</text>
+<g transform="translate(50 158)">
+  <rect width="350" height="118" rx="16" class="card"/>
+  <rect x="20" y="17" width="65" height="84" rx="7" fill="#1269a8" stroke="#0b4775" stroke-width="3"/>
+  <rect x="34" y="34" width="36" height="43" rx="4" fill="#26384a"/><circle cx="31" cy="25" r="4" fill="#f4c95d"/><circle cx="75" cy="25" r="4" fill="#f4c95d"/>
+  <text x="105" y="39" class="name">Arduino Mega 2560</text><text x="105" y="63" class="body">Seat scan + voice command</text><text x="105" y="85" class="small">UART1: D18/D19 • UART2: D16/D17</text>
+</g>
+<g transform="translate(425 158)">
+  <rect width="350" height="118" rx="16" class="card"/>
+  <rect x="21" y="14" width="53" height="90" rx="8" fill="#242b35" stroke="#101820" stroke-width="3"/>
+  <rect x="32" y="25" width="31" height="27" rx="3" fill="#b9c5cf"/><rect x="32" y="62" width="31" height="31" rx="3" fill="#111a24"/>
+  <text x="96" y="36" class="name">LILYGO T-SIM A7670E</text><text x="96" y="60" class="body">GPS + cellular backend link</text><text x="96" y="84" class="small">UART2 pins: GPIO21 RX / GPIO22 TX</text>
+</g>
+<g transform="translate(800 158)">
+  <rect width="350" height="118" rx="16" class="card"/>
+  <rect x="22" y="19" width="76" height="75" rx="5" fill="#198b75" stroke="#126a5b" stroke-width="3"/>
+  <g fill="#e7bc50"><circle cx="36" cy="32" r="4"/><circle cx="56" cy="32" r="4"/><circle cx="76" cy="32" r="4"/><circle cx="36" cy="52" r="4"/><circle cx="56" cy="52" r="4"/><circle cx="76" cy="52" r="4"/><circle cx="36" cy="72" r="4"/><circle cx="56" cy="72" r="4"/><circle cx="76" cy="72" r="4"/></g>
+  <text x="116" y="38" class="name">4 × CD74HC4067</text><text x="116" y="62" class="body">16-channel analog mux modules</text><text x="116" y="86" class="small">61 FLEXKYS seat mats across 4 boards</text>
+</g>
+<g transform="translate(1175 158)">
+  <rect width="375" height="118" rx="16" class="card"/>
+  <rect x="22" y="26" width="74" height="60" rx="6" fill="#2a3241" stroke="#111923" stroke-width="3"/>
+  <circle cx="44" cy="56" r="16" fill="#7d8b9b"/><circle cx="44" cy="56" r="10" fill="#27313e"/><circle cx="75" cy="38" r="3" fill="#ef5d52"/>
+  <text x="116" y="38" class="name">DFPlayer Mini + speaker</text><text x="116" y="62" class="body">Voice alert playback</text><text x="116" y="86" class="small">FAT32 microSD • /mp3/0001.mp3</text>
+</g>
+
+<!-- Wiring diagram -->
+<text x="50" y="327" class="section">WIRING SCHEMATIC</text>
+<text x="50" y="353" class="small">Color-coded connection paths and exact pin mapping. Keep all grounds common.</text>
+<rect x="45" y="372" width="1510" height="735" rx="18" fill="#fff" stroke="#d5deea" stroke-width="2"/>
+
+<!-- Mega -->
+<g transform="translate(85 440)">
+ <rect width="420" height="285" rx="16" fill="#eaf3fc" stroke="#8db4dc" stroke-width="2"/>
+ <text x="22" y="34" class="name">ARDUINO MEGA 2560</text>
+ <text x="24" y="72" class="pin">D22-D25</text><text x="144" y="72" class="body">→ all muxes S0-S3 (shared)</text>
+ <text x="24" y="105" class="pin">A0-A3</text><text x="144" y="105" class="body">← mux SIG 1-4</text>
+ <text x="24" y="138" class="pin">D18 TX1</text><text x="144" y="138" class="body">→ divider → ESP GPIO21 RX</text>
+ <text x="24" y="171" class="pin">D19 RX1</text><text x="144" y="171" class="body">← ESP GPIO22 TX</text>
+ <text x="24" y="204" class="pin">D16 TX2</text><text x="144" y="204" class="body">→ 1 kΩ → DFPlayer RX</text>
+ <text x="24" y="237" class="pin">D17 RX2</text><text x="144" y="237" class="body">← DFPlayer TX</text>
+ <text x="24" y="267" class="small">Mega Serial1: 9600 baud • Serial2: 9600 baud</text>
+</g>
+
+<!-- mux -->
+<g transform="translate(1085 425)">
+ <rect width="405" height="320" rx="16" fill="#eaf8f5" stroke="#82c9b9" stroke-width="2"/>
+ <text x="22" y="34" class="name">4 × CD74HC4067 MULTIPLEXERS</text>
+ <text x="24" y="73" class="pin">VCC</text><text x="116" y="73" class="body">← regulated +5 V</text>
+ <text x="24" y="105" class="pin">GND</text><text x="116" y="105" class="body">→ common GND</text>
+ <text x="24" y="137" class="pin">EN</text><text x="116" y="137" class="body">→ GND (enabled)</text>
+ <text x="24" y="169" class="pin">S0 / S1 / S2 / S3</text><text x="24" y="191" class="body">← Mega D22 / D23 / D24 / D25</text>
+ <text x="24" y="225" class="pin">SIG mux 1 / 2 / 3 / 4</text><text x="24" y="247" class="body">→ Mega A0 / A1 / A2 / A3</text>
+ <text x="24" y="282" class="small">Mux1 ch0-15 = seats 1-16; Mux2 = 17-32</text>
+ <text x="24" y="302" class="small">Mux3 = 33-48; Mux4 ch0-12 = seats 49-61</text>
+</g>
+
+<!-- route wires -->
+<path d="M505 510 C720 510 840 500 1085 500" class="wire" stroke="#2878d0" marker-end="url(#arrowBlue)"/>
+<text x="705" y="492" class="small" fill="#2878d0">D22-D25 shared select bus</text>
+<path d="M1085 650 C840 650 720 545 505 545" class="wire" stroke="#10a6a0" marker-end="url(#arrowTeal)"/>
+<text x="740" y="635" class="small" fill="#087f79">SIG 1-4 → A0-A3</text>
+
+<!-- esp32 -->
+<g transform="translate(85 770)">
+ <rect width="420" height="245" rx="16" fill="#f1edfb" stroke="#aa99d0" stroke-width="2"/>
+ <text x="22" y="34" class="name">LILYGO T-SIM A7670E R2</text>
+ <text x="24" y="75" class="pin">GPIO21 RX2</text><text x="155" y="75" class="body">← Mega D18 through divider</text>
+ <text x="24" y="111" class="pin">GPIO22 TX2</text><text x="155" y="111" class="body">→ Mega D19</text>
+ <text x="24" y="147" class="pin">GND</text><text x="155" y="147" class="body">↔ common GND</text>
+ <text x="24" y="186" class="small">Power LILYGO using its USB-C input /</text>
+ <text x="24" y="205" class="small">appropriate regulated 5 V input. GPS/LTE</text>
+ <text x="24" y="224" class="small">uses its SIM and onboard antenna.</text>
+</g>
+
+<!-- UART connection -->
+<path d="M295 770 L295 725" class="wire" stroke="#9a67c7" marker-end="url(#arrowBlue)"/>
+<text x="312" y="754" class="small" fill="#8152a9">UART1 TX/RX</text>
+
+<!-- DFPlayer -->
+<g transform="translate(650 800)">
+ <rect width="390" height="215" rx="16" fill="#fff5e8" stroke="#efbd79" stroke-width="2"/>
+ <text x="22" y="34" class="name">DFPLAYER MINI</text>
+ <text x="24" y="76" class="pin">RX</text><text x="94" y="76" class="body">← Mega D16 TX2 via 1 kΩ resistor</text>
+ <text x="24" y="110" class="pin">TX</text><text x="94" y="110" class="body">→ Mega D17 RX2</text>
+ <text x="24" y="144" class="pin">VCC / GND</text><text x="152" y="144" class="body">← regulated 5 V / common GND</text>
+ <text x="24" y="180" class="small">microSD FAT32, audio path /mp3/0001.mp3</text>
+</g>
+<path d="M505 655 C570 720 550 830 650 850" class="wire" stroke="#ed922e"/>
+<text x="515" y="760" class="small" fill="#ba6818">D16 TX2 → 1 kΩ → RX</text>
+<path d="M650 900 C590 900 565 690 505 690" class="wire" stroke="#bc6b38"/>
+<text x="520" y="887" class="small" fill="#93522b">TX → D17 RX2</text>
+
+<!-- speaker -->
+<g transform="translate(1185 810)">
+ <rect width="300" height="180" rx="16" fill="#fcefee" stroke="#e39b95" stroke-width="2"/>
+ <text x="22" y="34" class="name">PASSIVE SPEAKER</text>
+ <circle cx="95" cy="105" r="47" fill="#394554"/><circle cx="95" cy="105" r="35" fill="#aeb8c4"/><circle cx="95" cy="105" r="14" fill="#4b5968"/>
+ <text x="157" y="92" class="pin">SPK1</text><text x="157" y="118" class="pin">SPK2</text>
+ <text x="22" y="160" class="small">4 Ω, up to 3 W • no speaker lead to GND</text>
+</g>
+<path d="M1040 870 L1185 870" class="wire" stroke="#db4f61"/>
+<path d="M1040 925 L1185 925" class="wire" stroke="#48566a"/>
+<text x="1050" y="855" class="small">SPK1 / SPK2 direct</text>
+
+<!-- power and ground notes -->
+<rect x="85" y="1035" width="1400" height="48" rx="10" fill="#fff9df" stroke="#e7cc62"/>
+<text x="105" y="1065" class="body"><tspan font-weight="700">POWER + SENSOR NOTES:</tspan> Regulated 5 V to Mega, mux VCC and DFPlayer VCC; share ground with LILYGO. FLEXKYS mat: one lead to its mux channel, other lead to GND. Do not connect mat to +5 V.</text>
+<text x="50" y="1145" class="small">Logic-level warning: Mega TX is 5 V; protect ESP32 GPIO21 with a divider or level shifter. Example divider: Mega D18 → 1 kΩ → GPIO21 node, then 2 kΩ from node to GND.</text>
+<text x="50" y="1174" class="small">Alert threshold is 250 m. Add a recorded spoken prompt as /mp3/0001.mp3; verify exact LILYGO pinout for your board revision before wiring.</text>
+</svg>
