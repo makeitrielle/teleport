@@ -13,7 +13,8 @@ async function ensureCanonicalBusSeats(bus) {
     if (id > 5 && existing?.sensor !== "fault") changed = true;
     if (id <= 5 && !existing) changed = true;
     return existing
-      ? { id, status: existing.status, sensor: id <= 5 ? existing.sensor : "fault", updatedAt: existing.updatedAt }
+      ? { id, status: existing.status, sensor: id <= 5 ? existing.sensor : "fault",
+          sensorUpdatedAt: existing.sensorUpdatedAt, updatedAt: existing.updatedAt }
       : { id, status: "available", sensor: "fault", updatedAt: Date.now() };
   });
   if (changed) {

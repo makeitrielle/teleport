@@ -85,8 +85,12 @@ router.post("/seats", async (req, res) => {
   if (status === "available" || status === "booked") {
     seat.status = status;
     seat.sensor = "ok";
+  } else if (sensor === "fault") {
+    seat.sensor = "fault";
+  } else {
+    return res.status(400).json({ error: "Provide a valid seat status or sensor fault report." });
   }
-  if (sensor) seat.sensor = sensor;
+  seat.sensorUpdatedAt = Date.now();
   seat.updatedAt = Date.now();
 
   await bus.save();

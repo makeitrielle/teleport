@@ -5,6 +5,8 @@ const SeatSchema = new mongoose.Schema(
     id: { type: Number, required: true },
     status: { type: String, enum: ["available", "booked"], default: "available" },
     sensor: { type: String, enum: ["ok", "fault"], default: "ok" },
+    // Updated only by hardware telemetry, never by ticket sales.
+    sensorUpdatedAt: { type: Number, default: null },
     updatedAt: { type: Number, default: () => Date.now() },
   },
   { _id: false }
