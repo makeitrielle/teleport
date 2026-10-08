@@ -1,5 +1,6 @@
 node_modules/
 frontend/dist/
+front/dist/
 .env
 .env.*
 !.env.example
