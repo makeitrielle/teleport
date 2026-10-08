@@ -82,7 +82,10 @@ router.post("/seats", async (req, res) => {
   const seat = bus.seats.find((s) => s.id === Number(seatId));
   if (!seat) return res.status(404).json({ error: `Seat ${seatId} not found on this bus` });
 
-  if (status) seat.status = status;
+  if (status === "available" || status === "booked") {
+    seat.status = status;
+    seat.sensor = "ok";
+  }
   if (sensor) seat.sensor = sensor;
   seat.updatedAt = Date.now();
 
