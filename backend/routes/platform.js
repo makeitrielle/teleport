@@ -609,6 +609,17 @@ router.get("/tracking", requireAuth, async (req, res) => {
       targetCoordinates: b.proximityTarget,
       location: b.location,
       trackingEnabled: b.trackingEnabled,
+      tripStatus: b.status,
+      etaMin: b.etaMin,
+      seats: (b.seats || []).map(
+        ({ id, occupancy, sensor, sensorUpdatedAt, status }) => ({
+          id,
+          occupancy,
+          sensor,
+          sensorUpdatedAt,
+          status,
+        }),
+      ),
     })),
   );
 });

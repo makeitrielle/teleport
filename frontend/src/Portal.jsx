@@ -14,6 +14,15 @@ import {
   Bell,
   Armchair,
   ChevronRight,
+  ArrowLeft,
+  LogIn,
+  UserPlus,
+  Mail,
+  LogOut,
+  Smartphone,
+  Shield,
+  CheckCircle2,
+  Bus,
 } from "lucide-react";
 import {
   MapContainer,
@@ -90,6 +99,7 @@ function NavigationIcon({ page }) {
       "Bus Tracking": MapPin,
       "Activity History": ClipboardList,
       Account: User,
+      Notifications: Bell,
       Kiosk: Monitor,
       Management: LayoutDashboard,
       Settings,
@@ -112,10 +122,10 @@ function TravelWelcome({ name, navigate }) {
         {[
           [MapPin, "MAPS", "View the live route", "Bus Tracking", "maps"],
           [
-            Armchair,
+            Bus,
             "SEAT AVAILABILITY",
             "Live count straight from seat sensors",
-            "Bus Tracking",
+            "Seat Availability",
             "seats",
           ],
           [
@@ -149,6 +159,19 @@ function TravelWelcome({ name, navigate }) {
           </button>
         ))}
       </div>
+      <button
+        className="stay-updated"
+        onClick={() => navigate("Notifications")}
+      >
+        <span className="homeCardIcon">
+          <Bell size={21} />
+        </span>
+        <span className="homeCardCopy">
+          <strong>Stay updated</strong>
+          <small>See bus arrival and route notifications.</small>
+        </span>
+        <span>View ›</span>
+      </button>
     </>
   );
 }
@@ -159,6 +182,11 @@ function MapClick({ setPoint }) {
   return null;
 }
 function Dropoff({ point, setPoint }) {
+  const validPoint =
+    Number.isFinite(point?.lat) &&
+    Number.isFinite(point?.lon) &&
+    Math.abs(point.lat) <= 90 &&
+    Math.abs(point.lon) <= 180;
   return (
     <div>
       <p>
@@ -166,7 +194,7 @@ function Dropoff({ point, setPoint }) {
         pin is separate from the bus GPS location.
       </p>
       <MapContainer
-        center={point ? [point.lat, point.lon] : [14.3, 120.95]}
+        center={validPoint ? [point.lat, point.lon] : [14.3, 120.95]}
         zoom={12}
         className="tracking-map"
       >
@@ -175,7 +203,7 @@ function Dropoff({ point, setPoint }) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <MapClick setPoint={setPoint} />
-        {point && (
+        {validPoint && (
           <Marker position={[point.lat, point.lon]} icon={markerIcon} />
         )}
       </MapContainer>
@@ -236,7 +264,7 @@ export default function Portal() {
   const kiosk = new URLSearchParams(location.search).get("mode") === "kiosk";
   const [session, setSession] = useState(null),
     [ready, setReady] = useState(false),
-    [page, setPage] = useState(kiosk ? "Kiosk" : "Trip Schedule");
+    [page, setPage] = useState(kiosk ? "Kiosk" : "Sign in");
   const [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
@@ -252,6 +280,7 @@ export default function Portal() {
     [online, setOnline] = useState(navigator.onLine);
   const staff = ["staff", "admin"].includes(session?.role),
     admin = session?.role === "admin";
+  const passengerUI = !kiosk && !staff;
   const run = async (fn) => {
     setError("");
     setNotice("");
@@ -279,7 +308,9 @@ export default function Portal() {
     if (bootstrapped.current) return;
     bootstrapped.current = true;
     run(async () => {
-      await loadSession();
+      const current = await loadSession();
+      if (!kiosk && current.user)
+        setPage(current.role === "passenger" ? "Dashboard" : "Management");
       const params = new URLSearchParams(location.search);
       const token = params.get("verify");
       if (token) {
@@ -340,6 +371,27 @@ export default function Portal() {
     setError("");
     setNotice("");
   };
+  const logout = () =>
+    run(async () => {
+      await call("/logout", {});
+      setSession(null);
+      navigate(kiosk ? "Kiosk" : staff ? "Trip Schedule" : "Sign in");
+    });
+  const passengerNav = [
+    ["Dashboard", "Home"],
+    ["Activity History", "Activity"],
+    ["Notifications", "Notification"],
+    ["Account", "Profile"],
+  ];
+  const activePassengerPage = [
+    "Activity History",
+    "Notifications",
+    "Account",
+  ].includes(page)
+    ? page
+    : ["Settings", "User Guide", "My Bookings"].includes(page)
+      ? "Account"
+      : "Dashboard";
   useEffect(() => {
     if (!ticket || !(kiosk || page === "Kiosk")) return;
     const timer = setTimeout(() => {
@@ -366,13 +418,36 @@ export default function Portal() {
   ];
   return (
     <div
-      className={`${kiosk ? "portal kiosk" : "portal"}${staff ? " staff-portal" : ""}${page === "Sign in" || page === "Reset password" ? " auth-page" : ""}`}
+      className={`${kiosk ? "portal kiosk" : "portal"}${staff ? " staff-portal" : ""}${passengerUI ? " passenger-app" : ""}${page === "Sign in" || page === "Reset password" ? " auth-page" : ""}`}
     >
       <header>
-        <a className="brand" href={kiosk ? "/?mode=kiosk" : "/"}>
-          <Logo />
-        </a>
-        <div className="header-actions">
+        {passengerUI &&
+        [
+          "Bus Tracking",
+          "Seat Availability",
+          "Trip Schedule",
+          "Tickets",
+          "My Bookings",
+          "Settings",
+          "User Guide",
+        ].includes(page) ? (
+          <div className="passenger-page-heading">
+            <button
+              aria-label="Back to home"
+              onClick={() => navigate("Dashboard")}
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <strong>{page === "Bus Tracking" ? "Live map" : page}</strong>
+          </div>
+        ) : (
+          <a className="brand" href={kiosk ? "/?mode=kiosk" : "/"}>
+            <Logo />
+          </a>
+        )}
+        <div
+          className={`header-actions${passengerUI ? " passenger-header-actions" : ""}`}
+        >
           <button
             onClick={() => setTheme(theme === "light" ? "dark" : "light")}
             aria-label="Change color theme"
@@ -380,16 +455,7 @@ export default function Portal() {
             {theme === "light" ? "Dark Mode" : "Light Mode"}
           </button>
           {session ? (
-            <button
-              disabled={busy}
-              onClick={() =>
-                run(async () => {
-                  await call("/logout", {});
-                  setSession(null);
-                  navigate(kiosk ? "Kiosk" : "Trip Schedule");
-                })
-              }
-            >
+            <button disabled={busy} onClick={logout}>
               Sign out
             </button>
           ) : (
@@ -401,33 +467,46 @@ export default function Portal() {
         <a className="sidebar-brand" href={kiosk ? "/?mode=kiosk" : "/"}>
           <Logo />
         </a>
-        {(kiosk
-          ? [
-              "Kiosk",
-              "Trip Schedule",
-              ...(staff
-                ? [
-                    "Dashboard",
-                    "My Bookings",
-                    "Bus Tracking",
-                    "Activity History",
-                    "Management",
-                  ]
-                : []),
-              "Settings",
-              "User Guide",
-            ]
-          : nav
-        ).map((p) => (
-          <button
-            key={p}
-            aria-current={page === p ? "page" : undefined}
-            onClick={() => navigate(p)}
-          >
-            <NavigationIcon page={p} />
-            <span>{p}</span>
-          </button>
-        ))}
+        {passengerUI
+          ? passengerNav.map(([target, label]) => (
+              <button
+                key={target}
+                aria-current={
+                  activePassengerPage === target ? "page" : undefined
+                }
+                onClick={() => navigate(target)}
+              >
+                <NavigationIcon page={target} />
+                <span>{label}</span>
+              </button>
+            ))
+          : (kiosk
+              ? [
+                  "Kiosk",
+                  "Trip Schedule",
+                  ...(staff
+                    ? [
+                        "Dashboard",
+                        "My Bookings",
+                        "Bus Tracking",
+                        "Activity History",
+                        "Management",
+                      ]
+                    : []),
+                  "Settings",
+                  "User Guide",
+                ]
+              : nav
+            ).map((p) => (
+              <button
+                key={p}
+                aria-current={page === p ? "page" : undefined}
+                onClick={() => navigate(p)}
+              >
+                <NavigationIcon page={p} />
+                <span>{p}</span>
+              </button>
+            ))}
       </nav>
       <main>
         {!online && (
@@ -490,7 +569,8 @@ export default function Portal() {
                     navigate={navigate}
                   />
                 )}
-                {(page === "Trip Schedule" || page === "Dashboard") && (
+                {(page === "Trip Schedule" ||
+                  (page === "Dashboard" && !passengerUI)) && (
                   <Schedules
                     session={session}
                     refresh={refresh}
@@ -502,7 +582,7 @@ export default function Portal() {
                     }
                   />
                 )}
-                {page === "Dashboard" && (
+                {page === "Dashboard" && !passengerUI && (
                   <>
                     <h2>Your travel overview</h2>
                     {session ? (
@@ -562,22 +642,52 @@ export default function Portal() {
                   />
                 )}
                 {page === "Account" && (
-                  <Account
-                    session={session}
-                    run={run}
-                    saved={async () => {
-                      await loadSession();
-                      setNotice(
-                        "Account updated. Discount categories require staff verification.",
-                      );
-                    }}
-                  />
+                  <>
+                    {passengerUI && (
+                      <PassengerProfile
+                        session={session}
+                        navigate={navigate}
+                        logout={logout}
+                        busy={busy}
+                        install={install}
+                        installed={() => setInstall(null)}
+                      />
+                    )}
+                    <details
+                      className={passengerUI ? "profile-edit" : "staff-account"}
+                      open={!passengerUI}
+                    >
+                      <summary>Edit account details</summary>
+                      <Account
+                        session={session}
+                        run={run}
+                        saved={async () => {
+                          await loadSession();
+                          setNotice(
+                            "Account updated. Discount categories require staff verification.",
+                          );
+                        }}
+                      />
+                    </details>
+                  </>
                 )}
                 {page === "Activity History" && (
-                  <Activity run={run} refresh={refresh} />
+                  <Activity
+                    run={run}
+                    refresh={refresh}
+                    passenger={passengerUI}
+                  />
                 )}
                 {page === "Bus Tracking" && (
-                  <Tracking run={run} refresh={refresh} />
+                  <Tracking
+                    run={run}
+                    refresh={refresh}
+                    passenger={passengerUI}
+                  />
+                )}
+                {page === "Seat Availability" && <PassengerSeats run={run} />}
+                {page === "Notifications" && (
+                  <PassengerNotifications notifications={notifications} />
                 )}
                 {page === "Management" && staff && (
                   <Management
@@ -1415,21 +1525,52 @@ function Auth({ run, notify, loggedIn, reset }) {
         />
       </section>
       <section className="auth">
-        <h1>
-          {
+        {["login", "signup"].includes(mode) ? (
+          <div
+            className="auth-tabs"
+            role="group"
+            aria-label="Passenger account"
+          >
+            <button
+              type="button"
+              aria-pressed={mode === "login"}
+              onClick={() => setMode("login")}
+            >
+              Log in
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === "signup"}
+              onClick={() => setMode("signup")}
+            >
+              Register
+            </button>
+          </div>
+        ) : (
+          <h1>
             {
-              login: "Passenger sign in",
-              signup: "Create passenger account",
-              staff: "Staff sign in",
-              forgot: "Reset your password",
-              reset: "Set a new password",
-            }[mode]
-          }
-        </h1>
+              {
+                login: "Passenger sign in",
+                signup: "Create passenger account",
+                staff: "Staff sign in",
+                forgot: "Reset your password",
+                reset: "Set a new password",
+              }[mode]
+            }
+          </h1>
+        )}
         <form
           onSubmit={(e) => {
             e.preventDefault();
             const f = Object.fromEntries(new FormData(e.currentTarget));
+            if (mode === "signup" && f.password !== f.confirmPassword) {
+              e.currentTarget.elements.confirmPassword.setCustomValidity(
+                "Passwords must match.",
+              );
+              e.currentTarget.elements.confirmPassword.reportValidity();
+              return;
+            }
+            delete f.confirmPassword;
             setPending(true);
             run(async () => {
               if (mode === "signup") {
@@ -1449,7 +1590,8 @@ function Auth({ run, notify, loggedIn, reset }) {
                 setMode("login");
                 notify("Password updated. Sign in again.");
               } else {
-                if (mode === "staff") await api.adminLogin(f.kioskId, f.password);
+                if (mode === "staff")
+                  await api.adminLogin(f.kioskId, f.password);
                 else await api.passengerLogin(f.email, f.password);
                 await loggedIn();
               }
@@ -1457,7 +1599,13 @@ function Auth({ run, notify, loggedIn, reset }) {
           }}
         >
           {mode === "signup" && (
-            <Field label="Full name" name="name" required maxLength={120} />
+            <Field
+              label="Full name"
+              name="name"
+              placeholder="Juan Dela Cruz"
+              required
+              maxLength={120}
+            />
           )}{" "}
           {mode === "staff" ? (
             <Field
@@ -1474,6 +1622,7 @@ function Auth({ run, notify, loggedIn, reset }) {
                 type="email"
                 required
                 autoComplete="email"
+                placeholder="you@example.com"
               />
             )
           )}
@@ -1485,6 +1634,7 @@ function Auth({ run, notify, loggedIn, reset }) {
               minLength={mode === "signup" || mode === "reset" ? 8 : undefined}
               maxLength={256}
               required
+              placeholder="At least 8 characters"
               autoComplete={
                 mode === "signup" || mode === "reset"
                   ? "new-password"
@@ -1492,15 +1642,52 @@ function Auth({ run, notify, loggedIn, reset }) {
               }
             />
           )}
+          {mode === "signup" && (
+            <Field
+              label="Confirm password"
+              name="confirmPassword"
+              type="password"
+              required
+              autoComplete="new-password"
+              placeholder="••••••••"
+              onChange={(e) => e.target.setCustomValidity("")}
+            />
+          )}
           <button className="primary" disabled={pending}>
-            {pending ? "Please wait…" : "Continue"}
+            {mode === "signup" ? (
+              <UserPlus size={16} />
+            ) : mode === "forgot" ? (
+              <Mail size={16} />
+            ) : (
+              <LogIn size={16} />
+            )}
+            {pending
+              ? "Please wait…"
+              : mode === "signup"
+                ? "Create account"
+                : mode === "forgot"
+                  ? "Send reset link"
+                  : mode === "reset"
+                    ? "Save password"
+                    : "Log in"}
           </button>
         </form>
         <div className="actions">
           {["login", "signup", "forgot", "staff"]
-            .filter((m) => m !== mode)
+            .filter(
+              (m) =>
+                m !== mode &&
+                (!["login", "signup"].includes(mode) ||
+                  !["login", "signup"].includes(m)),
+            )
             .map((m) => (
-              <button key={m} onClick={() => setMode(m)}>
+              <button
+                className={
+                  m === "staff" ? "staff-login-link" : "auth-text-link"
+                }
+                key={m}
+                onClick={() => setMode(m)}
+              >
                 {
                   {
                     login: "Passenger sign in",
@@ -1532,6 +1719,175 @@ function Auth({ run, notify, loggedIn, reset }) {
         ))}
       </aside>
     </div>
+  );
+}
+function PassengerProfile({
+  session,
+  navigate,
+  logout,
+  busy,
+  install,
+  installed,
+}) {
+  const user = session?.user;
+  return (
+    <section className="passenger-profile">
+      <div className="profile-identity">
+        <span className="profile-avatar">
+          {(user?.name || "Passenger")
+            .split(/\s+/)
+            .map((p) => p[0])
+            .slice(0, 2)
+            .join("")
+            .toUpperCase()}
+        </span>
+        <div>
+          <strong>{user?.name || "Passenger"}</strong>
+          <p>Passenger account</p>
+        </div>
+      </div>
+      {[
+        [
+          Smartphone,
+          "Install TELE-PORT app",
+          async () => {
+            if (install) {
+              await install.prompt();
+              installed();
+            } else navigate("Settings");
+          },
+        ],
+        [ClipboardList, "My bookings", () => navigate("My Bookings")],
+        [TicketIcon, "My tickets", () => navigate("Tickets")],
+        [Shield, "Help center", () => navigate("User Guide")],
+        [Settings, "Settings", () => navigate("Settings")],
+      ].map(([Icon, label, action]) => (
+        <button className="profile-row" key={label} onClick={action}>
+          <Icon size={20} />
+          <strong>{label}</strong>
+          <ChevronRight size={18} />
+        </button>
+      ))}
+      <button
+        className="profile-row profile-logout"
+        onClick={logout}
+        disabled={busy}
+      >
+        <LogOut size={20} />
+        <strong>Log out</strong>
+      </button>
+    </section>
+  );
+}
+function PassengerNotifications({ notifications }) {
+  return (
+    <section className="passenger-notifications">
+      <h1>Notifications</h1>
+      <article className="passenger-list-card">
+        <span className="homeCardIcon">
+          <MapPin size={22} />
+        </span>
+        <div>
+          <strong>Bus proximity alerts</strong>
+          <small>
+            Updates use the bus GPS location and your active reservation.
+          </small>
+          <p className="notification-note">
+            Open Maps to see the latest GPS status. Alerts appear here when your
+            bus approaches its configured stop.
+          </p>
+        </div>
+      </article>
+      {!notifications.length ? (
+        <Empty>No trip notifications yet.</Empty>
+      ) : (
+        notifications.map((n) => (
+          <article className="passenger-list-card" key={n._id}>
+            <span className="homeCardIcon">
+              <Bell size={22} />
+            </span>
+            <div>
+              <strong>{n.title || "Trip update"}</strong>
+              <small>{n.body || n.message}</small>
+              <small>{date(n.createdAt)}</small>
+            </div>
+          </article>
+        ))
+      )}
+    </section>
+  );
+}
+const liveSeat = (seat) =>
+  seat.sensor === "ok" &&
+  seat.sensorUpdatedAt &&
+  Date.now() - Number(seat.sensorUpdatedAt) >= 0 &&
+  Date.now() - Number(seat.sensorUpdatedAt) <= 90000 &&
+  ["available", "occupied"].includes(seat.occupancy);
+function PassengerSeats({ run }) {
+  const [buses, setBuses] = useState(null);
+  useEffect(() => {
+    let active = true;
+    const poll = () =>
+      request("/tracking")
+        .then((data) => active && setBuses(data))
+        .catch(
+          (e) =>
+            active &&
+            run(async () => {
+              throw e;
+            }),
+        );
+    poll();
+    const timer = setInterval(poll, 10000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, []);
+  return (
+    <section className="passenger-seats">
+      <h1>Seat availability</h1>
+      {!buses?.length ? (
+        <Empty>
+          {buses === null
+            ? "Loading seat sensors…"
+            : "No buses are assigned to your active reservations."}
+        </Empty>
+      ) : (
+        buses.map((bus) => (
+          <article key={bus.id}>
+            <h2>
+              <Bus size={20} /> {bus.busId}
+            </h2>
+            <p>{bus.route}</p>
+            <div className="seat-grid">
+              {(bus.seats || []).map((s) => (
+                <div
+                  className={`seat ${liveSeat(s) ? (s.occupancy === "available" && s.status !== "booked" ? "seat-available" : "seat-occupied") : "seat-offline"}`}
+                  key={s.id}
+                >
+                  <Armchair size={22} />
+                  <strong>Seat {s.id}</strong>
+                  <span>
+                    {!liveSeat(s)
+                      ? "Sensor unavailable"
+                      : s.occupancy === "occupied"
+                        ? "Occupied"
+                        : s.status === "booked"
+                          ? "Reserved"
+                          : "Available"}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p>
+              Only fresh sensor readings show occupancy. Reservations remain
+              separate from the physical seat sensors.
+            </p>
+          </article>
+        ))
+      )}
+    </section>
   );
 }
 function Account({ session, run, saved }) {
@@ -1583,7 +1939,7 @@ function Account({ session, run, saved }) {
     </section>
   );
 }
-function Activity({ run, refresh }) {
+function Activity({ run, refresh, passenger = false }) {
   const [items, setItems] = useState(null),
     [filters, setFilters] = useState({});
   const load = () =>
@@ -1598,49 +1954,78 @@ function Activity({ run, refresh }) {
     load();
   }, [refresh]);
   return (
-    <section>
-      <h1>Activity History</h1>
-      <form
-        className="filters"
-        onSubmit={(e) => {
-          e.preventDefault();
-          load();
-        }}
-      >
-        {[
-          ["start", "From", "datetime-local"],
-          ["end", "Until", "datetime-local"],
-          ["event", "Activity type", "text"],
-          ["reference", "Booking reference", "text"],
-          ["ticketNumber", "Ticket number", "text"],
-          ["busId", "Bus ID", "text"],
-        ].map(([k, label, type]) => (
-          <Field
-            key={k}
-            label={label}
-            type={type}
-            value={filters[k] || ""}
-            onChange={(e) => setFilters({ ...filters, [k]: e.target.value })}
-          />
-        ))}
-        <Field label="Outcome">
-          <select
-            value={filters.outcome || ""}
-            onChange={(e) =>
-              setFilters({ ...filters, outcome: e.target.value })
-            }
-          >
-            <option value="">All</option>
-            <option>success</option>
-            <option>failure</option>
-          </select>
-        </Field>
-        <button>Apply filters</button>
-      </form>
+    <section className={passenger ? "passenger-activity" : undefined}>
+      <h1>{passenger ? "Activity" : "Activity History"}</h1>
+      <details open={!passenger} className="activity-filters">
+        <summary>Filter activity</summary>
+        <form
+          className="filters"
+          onSubmit={(e) => {
+            e.preventDefault();
+            load();
+          }}
+        >
+          {[
+            ["start", "From", "datetime-local"],
+            ["end", "Until", "datetime-local"],
+            ["event", "Activity type", "text"],
+            ["reference", "Booking reference", "text"],
+            ["ticketNumber", "Ticket number", "text"],
+            ["busId", "Bus ID", "text"],
+          ].map(([k, label, type]) => (
+            <Field
+              key={k}
+              label={label}
+              type={type}
+              value={filters[k] || ""}
+              onChange={(e) => setFilters({ ...filters, [k]: e.target.value })}
+            />
+          ))}
+          <Field label="Outcome">
+            <select
+              value={filters.outcome || ""}
+              onChange={(e) =>
+                setFilters({ ...filters, outcome: e.target.value })
+              }
+            >
+              <option value="">All</option>
+              <option>success</option>
+              <option>failure</option>
+            </select>
+          </Field>
+          <button>Apply filters</button>
+        </form>
+      </details>
       {!items?.length ? (
         <Empty>
           {items === null ? "Loading history…" : "No matching activity."}
         </Empty>
+      ) : passenger ? (
+        <div className="passenger-list">
+          {items.map((a) => (
+            <article className="passenger-list-card" key={a._id}>
+              <span
+                className={`homeCardIcon ${a.outcome === "success" ? "schedule" : "maps"}`}
+              >
+                <CheckCircle2 size={22} />
+              </span>
+              <div>
+                <strong>
+                  {a.event}
+                  {a.busId?.busId ? ` · ${a.busId.busId}` : ""}
+                </strong>
+                <small>{date(a.createdAt)}</small>
+                <details>
+                  <summary>Details</summary>
+                  <p>
+                    {a.reference || ""} · {a.outcome}
+                    {a.detail ? ` · ${a.detail}` : ""}
+                  </p>
+                </details>
+              </div>
+            </article>
+          ))}
+        </div>
       ) : (
         <div className="table-wrap">
           <table>
@@ -1682,8 +2067,9 @@ function Activity({ run, refresh }) {
     </section>
   );
 }
-function Tracking({ run, refresh }) {
-  const [items, setItems] = useState(null);
+function Tracking({ run, refresh, passenger = false }) {
+  const [items, setItems] = useState(null),
+    [paused, setPaused] = useState(false);
   useEffect(() => {
     let active = true;
     const poll = () =>
@@ -1697,19 +2083,27 @@ function Tracking({ run, refresh }) {
             }),
         );
     poll();
+    if (paused)
+      return () => {
+        active = false;
+      };
     const timer = setInterval(poll, 10000);
     return () => {
       active = false;
       clearInterval(timer);
     };
-  }, [refresh]);
+  }, [refresh, paused]);
   return (
-    <section>
-      <h1>Bus Tracking</h1>
-      <p>
-        Proximity uses authenticated GPS fixes and a 100-meter target boundary.
-        Location data older than two minutes is marked stale.
-      </p>
+    <section className={passenger ? "passenger-tracking" : undefined}>
+      {!passenger && (
+        <>
+          <h1>Bus Tracking</h1>
+          <p>
+            Proximity uses authenticated GPS fixes and a 100-meter target
+            boundary. Location data older than two minutes is marked stale.
+          </p>
+        </>
+      )}
       {!items?.length ? (
         <Empty>
           {items === null
@@ -1719,25 +2113,93 @@ function Tracking({ run, refresh }) {
       ) : (
         <div className="grid">
           {items.map((b) => (
-            <article key={b.id}>
-              <div className="row">
-                <h2>{b.busId}</h2>
-                <Pill>{b.status}</Pill>
+            <article
+              className={passenger ? "passenger-tracking-card" : undefined}
+              key={b.id}
+            >
+              <div className="tracking-status">
+                <div className="row">
+                  <h2>{b.busId}</h2>
+                  <Pill>
+                    {passenger
+                      ? b.tripStatus === "active"
+                        ? "ON TRIP"
+                        : (b.tripStatus || "idle").toUpperCase()
+                      : b.status}
+                  </Pill>
+                </div>
+                <p>{b.route}</p>
+                {passenger && (
+                  <div className="tracking-stats">
+                    <div>
+                      <small>Available seats</small>
+                      <strong>
+                        {
+                          (b.seats || []).filter(
+                            (s) =>
+                              liveSeat(s) &&
+                              s.occupancy === "available" &&
+                              s.status !== "booked",
+                          ).length
+                        }
+                      </strong>
+                    </div>
+                    <div>
+                      <small>Not available</small>
+                      <strong>
+                        {
+                          (b.seats || []).filter(
+                            (s) =>
+                              liveSeat(s) &&
+                              (s.occupancy === "occupied" ||
+                                s.status === "booked"),
+                          ).length
+                        }
+                      </strong>
+                    </div>
+                    <div>
+                      <small>ETA</small>
+                      <strong>
+                        {["Within 100 m", "Outside 100 m"].includes(b.status) &&
+                        b.etaMin > 0
+                          ? `${b.etaMin}m`
+                          : "Unavailable"}
+                      </strong>
+                    </div>
+                  </div>
+                )}
+                <details open={!passenger}>
+                  <summary>GPS details</summary>
+                  {passenger && (
+                    <p>
+                      {b.status} ·{" "}
+                      {(b.seats || []).filter((s) => !liveSeat(s)).length} seat
+                      sensors unavailable
+                    </p>
+                  )}
+                  <dl>
+                    <dt>Target</dt>
+                    <dd>{b.target || "Not configured"}</dd>
+                    <dt>Distance</dt>
+                    <dd>
+                      {b.distanceMeters === null
+                        ? "Cannot determine"
+                        : `${Math.round(b.distanceMeters)} m`}
+                    </dd>
+                    <dt>GPS update</dt>
+                    <dd>{date(b.lastUpdated)}</dd>
+                  </dl>
+                  {b.reason && <p>{b.reason}</p>}
+                </details>
+                {passenger && (
+                  <button
+                    className="pause-tracking"
+                    onClick={() => setPaused(!paused)}
+                  >
+                    {paused ? "Resume tracking" : "Pause tracking"}
+                  </button>
+                )}
               </div>
-              <p>{b.route}</p>
-              <dl>
-                <dt>Target</dt>
-                <dd>{b.target || "Not configured"}</dd>
-                <dt>Distance</dt>
-                <dd>
-                  {b.distanceMeters === null
-                    ? "Cannot determine"
-                    : `${Math.round(b.distanceMeters)} m`}
-                </dd>
-                <dt>GPS update</dt>
-                <dd>{date(b.lastUpdated)}</dd>
-              </dl>
-              {b.reason && <p>{b.reason}</p>}
               {["Within 100 m", "Outside 100 m"].includes(b.status) && (
                 <MapContainer
                   center={[b.location.lat, b.location.lon]}
@@ -1766,6 +2228,12 @@ function Tracking({ run, refresh }) {
                   </Marker>
                 </MapContainer>
               )}
+              {passenger &&
+                !["Within 100 m", "Outside 100 m"].includes(b.status) && (
+                  <Empty>
+                    {b.reason || "Waiting for a fresh GPS location."}
+                  </Empty>
+                )}
             </article>
           ))}
         </div>
