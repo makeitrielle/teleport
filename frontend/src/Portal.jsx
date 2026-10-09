@@ -40,6 +40,7 @@ import { FARE_MATRIX, fareDirectionForRoute } from "../../shared/fareMatrix.js";
 import { gpsOnline, haversineMeters } from "../../shared/proximity.js";
 import { seatAvailability } from "../../shared/nearbyAlerts.js";
 import { useNearbyBusAlerts } from "./useNearbyBusAlerts.js";
+import { destinationProgress } from "../../shared/destinationProgress.js";
 import {
   canUseSeat,
   isPrioritySeat,
@@ -703,6 +704,15 @@ export default function Portal() {
             ))}
       </nav>
       <main>
+        {passengerUI && session?.role === "passenger" && (
+          <DestinationJourney
+            feed={nearbyAlerts}
+            visible={["Dashboard", "Bus Tracking", "Notifications"].includes(
+              page,
+            )}
+            openTickets={() => navigate("Tickets")}
+          />
+        )}
         {passengerUI && nearbyAlerts.alerts[0] && page !== "Notifications" && (
           <div
             className="alert nearby-arrival-alert"
@@ -2451,6 +2461,172 @@ function NearbyMapBounds({ points, viewKey }) {
     else if (points.length) map.setView(points[0], 14);
   }, [map, viewKey]);
   return null;
+}
+function DestinationJourney({ feed, visible, openTickets }) {
+  const [selectedId, setSelectedId] = useState("");
+  const [startedId, setStartedId] = useState(null);
+  const [now, setNow] = useState(Date.now());
+  const sent = useRef(new Map());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(timer);
+  }, []);
+  const tickets = (feed.tickets || []).filter(
+    (t) =>
+      t.status === "active" &&
+      (!t.expiresAt || new Date(t.expiresAt).getTime() > now),
+  );
+  const ticket = tickets.find((t) => t._id === selectedId) || tickets[0];
+  const bus = (feed.items || []).find((b) => b.id === String(ticket?.busId));
+  const { route } = useRoadRoute(bus?.from, bus?.to);
+  const state = destinationProgress(ticket, bus, route?.points, now);
+  const started = ticket && startedId === ticket._id;
+  useEffect(() => {
+    if (!started || !state || state.passed) return;
+    const flags = sent.current.get(ticket._id) || {};
+    const kind =
+      state.close && !flags.close
+        ? "close"
+        : state.approaching && !flags.approaching
+          ? "approaching"
+          : null;
+    if (!kind) return;
+    flags[kind] = true;
+    if (kind === "close") flags.approaching = true;
+    sent.current.set(ticket._id, flags);
+    const eta =
+      state.etaSeconds === null
+        ? ""
+        : ` Estimated arrival in ${Math.max(1, Math.ceil(state.etaSeconds / 60))} min.`;
+    feed.addAlert({
+      _id: `destination-${ticket._id}-${kind}`,
+      title:
+        kind === "close"
+          ? `Your drop-off at ${ticket.to} is close`
+          : `Approaching ${ticket.to}`,
+      body: `${bus.busId} · Seat ${ticket.seatId}. Prepare to get off.${eta}${state.estimatedStop ? " Fare-point location is estimated along the route." : ""}`,
+      createdAt: new Date(now).toISOString(),
+    });
+  }, [
+    started,
+    ticket,
+    bus,
+    state?.close,
+    state?.approaching,
+    state?.passed,
+    feed.addAlert,
+  ]);
+  if (!visible) return null;
+  if (!ticket)
+    return (
+      <div className="destination-connect-note">
+        <MapPin size={18} />
+        <span>
+          Connect your ticket to see your drop-off ETA and destination alerts.
+        </span>
+        <button onClick={openTickets}>My ticket</button>
+      </div>
+    );
+  const arrivalTime =
+    state?.etaSeconds != null
+      ? new Date(now + state.etaSeconds * 1000).toLocaleTimeString("en-PH", {
+          timeZone: "Asia/Manila",
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : null;
+  return (
+    <section
+      className="destination-journey-card"
+      aria-label="Your destination arrival"
+    >
+      <div className="row">
+        <strong className="destination-arrival-title">
+          {state?.passed
+            ? "Drop-off point passed"
+            : state?.close
+              ? "Your drop-off is close"
+              : arrivalTime
+                ? `Arriving around ${arrivalTime}`
+                : "Your destination"}
+        </strong>
+        <span className="destination-bus-badge">
+          {bus?.busId || "Waiting for bus GPS"}
+        </span>
+      </div>
+      <p>
+        <MapPin size={16} /> {ticket.to} · Seat {ticket.seatId}
+      </p>
+      <small>
+        {state
+          ? state.passed
+            ? "Check with the conductor about your stop."
+            : `${(state.remainingMeters / 1000).toFixed(1)} km remaining${state.etaSeconds != null ? ` · About ${Math.max(1, Math.ceil(state.etaSeconds / 60))} min` : " · ETA unavailable while stopped"}`
+          : "Waiting for a fresh bus GPS location and road route."}
+      </small>
+      <div
+        className="destination-progress-track"
+        role="progressbar"
+        aria-label="Progress to your drop-off"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round((state?.progress || 0) * 100)}
+      >
+        <div
+          className="destination-progress-fill"
+          style={{ width: `${(state?.progress || 0) * 100}%` }}
+        />
+        <span className="destination-progress-start">●</span>
+        <span
+          className="destination-progress-bus"
+          style={{ left: `${Math.min(96, (state?.progress || 0) * 100)}%` }}
+        >
+          <Bus size={22} />
+        </span>
+        <MapPin className="destination-progress-end" size={23} />
+      </div>
+      <div className="destination-progress-labels">
+        <small>{ticket.from}</small>
+        <small>{ticket.to}</small>
+      </div>
+      {tickets.length > 1 && (
+        <Field label="Trip to monitor">
+          <select
+            value={ticket._id}
+            onChange={(e) => {
+              setSelectedId(e.target.value);
+              setStartedId(null);
+            }}
+          >
+            {tickets.map((t) => (
+              <option key={t._id} value={t._id}>
+                {t.to} · Seat {t.seatId}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      <div className="destination-card-actions">
+        <button
+          className="primary"
+          onClick={() => setStartedId(started ? null : ticket._id)}
+        >
+          {started ? "Stop destination alerts" : "Start destination alerts"}
+        </button>
+        <small>
+          {started
+            ? "Alerts on while this app is open."
+            : "Start after boarding your bus."}
+        </small>
+      </div>
+      <p className="destination-estimate-note">
+        {state?.estimatedStop
+          ? "Fare-point position and arrival time are route estimates."
+          : "Arrival time is estimated from bus GPS and current speed."}{" "}
+        Traffic and GPS updates can change the estimate.
+      </p>
+    </section>
+  );
 }
 const busSeatCounts = seatAvailability;
 function NearbyPassengerMap({ items, nearbyAlerts }) {

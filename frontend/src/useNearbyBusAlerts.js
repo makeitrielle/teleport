@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { request } from "./api.js";
 import {
   arrivalState,
@@ -8,6 +8,7 @@ import {
 
 export function useNearbyBusAlerts(enabled, userId) {
   const [items, setItems] = useState(null);
+  const [tickets, setTickets] = useState([]);
   const [position, setPosition] = useState(null);
   const [locate, setLocate] = useState(false);
   const [locationMessage, setLocationMessage] = useState("");
@@ -23,6 +24,7 @@ export function useNearbyBusAlerts(enabled, userId) {
     setPosition(null);
     setLocate(false);
     history.current.clear();
+    setTickets([]);
     if (!enabled) {
       setItems(null);
       return;
@@ -33,8 +35,14 @@ export function useNearbyBusAlerts(enabled, userId) {
       if (pending) return;
       pending = true;
       try {
-        const data = await request("/tracking");
-        if (active) setItems(data);
+        const results = await Promise.allSettled([
+          request("/tracking"),
+          request("/tickets"),
+        ]);
+        if (active) {
+          setItems(results[0].status === "fulfilled" ? results[0].value : []);
+          if (results[1].status === "fulfilled") setTickets(results[1].value);
+        }
       } catch {
         if (active) setItems([]);
       } finally {
@@ -153,8 +161,31 @@ export function useNearbyBusAlerts(enabled, userId) {
     if (typeof Notification !== "undefined")
       setBrowserPermission(await Notification.requestPermission());
   };
+  const addAlert = useCallback((alert) => {
+    setAlerts((old) => [alert, ...old].slice(0, 30));
+    if (
+      typeof Notification !== "undefined" &&
+      Notification.permission === "granted"
+    ) {
+      const options = {
+        body: alert.body,
+        tag: alert._id,
+        icon: "/icons/icon-192.png",
+      };
+      navigator.serviceWorker
+        ?.getRegistration()
+        .then((registration) => {
+          if (registration)
+            return registration.showNotification(alert.title, options);
+          new Notification(alert.title, options);
+        })
+        .catch(() => {});
+    }
+  }, []);
   return {
     items,
+    tickets,
+    addAlert,
     position,
     locate,
     locationMessage,
