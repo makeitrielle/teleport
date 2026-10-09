@@ -102,12 +102,13 @@ async function issueTicket(req, res, selfService) {
   const lat = dropoffLocation?.lat,
     lon = dropoffLocation?.lon;
   if (
-    !Number.isFinite(lat) ||
-    !Number.isFinite(lon) ||
-    lat < -90 ||
-    lat > 90 ||
-    lon < -180 ||
-    lon > 180
+    !selfService &&
+    (!Number.isFinite(lat) ||
+      !Number.isFinite(lon) ||
+      lat < -90 ||
+      lat > 90 ||
+      lon < -180 ||
+      lon > 180)
   )
     return res.status(400).json({ error: "A valid drop-off pin is required." });
   if (!isSeatMonitored(bus, seatId))
@@ -149,9 +150,9 @@ async function issueTicket(req, res, selfService) {
         req.body.eligibilityDeclared === true,
       from: selfService ? bus.from : from || bus.from,
       routeTo: selfService ? bus.to : routeTo || bus.to,
-      to,
-      distanceKm,
-      dropoffLocation,
+      to: fare.landmark,
+      distanceKm: fare.distanceKm,
+      dropoffLocation: selfService ? undefined : dropoffLocation,
       fare: passengerType === "regular" ? fare.regular : fare.discounted,
       qrCode: crypto.randomBytes(32).toString("hex"),
       bookingReference:

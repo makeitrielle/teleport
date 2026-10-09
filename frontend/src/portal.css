@@ -1812,6 +1812,162 @@ summary {
   background: rgba(37, 42, 50, 0.25);
   backdrop-filter: blur(2px);
 }
+
+.nearby-map-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.nearby-map-toolbar > div:first-child {
+  flex: 1;
+}
+.nearby-map-toolbar h1,
+.nearby-map-toolbar p {
+  margin: 0 0 6px;
+}
+.nearby-map-toolbar .field {
+  min-width: 110px;
+  margin: 0;
+}
+.nearby-map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 20px;
+}
+.nearby-map-panel {
+  min-width: 0;
+}
+.nearby-live-map {
+  height: 480px;
+  width: 100%;
+  border-radius: 24px;
+  z-index: 0;
+}
+.nearby-bus-marker {
+  background: var(--surface);
+  border: 2px solid var(--brand);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 23px;
+  box-shadow: 0 3px 12px #0003;
+}
+.passenger-location-marker {
+  background: #2878db;
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 0 7px #2878db30;
+}
+.nearby-selected-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: -16px;
+  position: relative;
+  z-index: 1;
+  padding: 22px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+}
+.nearby-selected-card p {
+  margin: 6px 0;
+}
+.nearby-seat-total {
+  margin-left: auto;
+  font-size: 28px;
+  text-align: center;
+}
+.nearby-seat-total small {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+}
+.nearby-bus-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 620px;
+  overflow-y: auto;
+}
+.nearby-bus-card {
+  display: block;
+  text-align: left;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--text);
+}
+.nearby-bus-card.selected {
+  border: 2px solid var(--brand);
+  padding: 19px;
+  background: var(--soft);
+}
+.nearby-bus-card .row strong {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.nearby-bus-card p {
+  margin: 12px 0 5px;
+}
+.nearby-online-badge {
+  background: #e5f5e9;
+  color: #17683a;
+  border-radius: 20px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.nearby-seat-counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 11px;
+}
+.nearby-seat-counts strong {
+  display: block;
+  font-size: 22px;
+}
+.nearby-route-note {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 12px 4px;
+}
+@media (max-width: 1000px) {
+  .nearby-map-layout {
+    grid-template-columns: 1fr;
+  }
+  .nearby-live-map {
+    height: 390px;
+  }
+  .nearby-bus-list {
+    max-height: none;
+  }
+}
+@media (max-width: 600px) {
+  .nearby-live-map {
+    height: 360px;
+  }
+  .nearby-selected-card {
+    padding: 16px;
+    gap: 10px;
+  }
+  .nearby-selected-card .homeCardIcon {
+    display: none;
+  }
+  .nearby-map-toolbar {
+    gap: 10px;
+  }
+  .nearby-map-toolbar > div:first-child {
+    flex-basis: 100%;
+  }
+}
 .auth-loading-card {
   display: flex;
   flex-direction: column;

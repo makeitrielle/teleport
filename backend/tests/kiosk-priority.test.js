@@ -6,6 +6,8 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import Admin from "../models/Admin.js";
 import Bus from "../models/Bus.js";
 import Ticket from "../models/Ticket.js";
+import Passenger from "../models/Passenger.js";
+import { gpsOnline } from "../../shared/proximity.js";
 import { hashToken, hashPassword } from "../security.js";
 import {
   kioskSeatLayout,
@@ -101,7 +103,6 @@ test("self-service kiosk preserves priority seating, prevents duplicate booking 
           categoryVerified: true,
           to: "PITX",
           distanceKm: 27,
-          dropoffLocation: { lat: 14.509, lon: 120.991 },
         }),
       });
     }
@@ -111,6 +112,13 @@ test("self-service kiosk preserves priority seating, prevents duplicate booking 
     const selfTicket = await selfServe(3, "pwd");
     assert.equal(selfTicket.status, 201);
     const selfBody = await selfTicket.json();
+    const storedSelfTicket = await Ticket.findOne({
+      seatId: 3,
+      busId: bus._id,
+    });
+    assert.equal(storedSelfTicket.to, "PITX");
+    assert.equal(storedSelfTicket.fare, 54);
+    assert.equal(storedSelfTicket.dropoffLocation?.lat, undefined);
     assert.equal(selfBody.categoryVerified, false);
     assert.equal(selfBody.eligibilityDeclared, true);
     assert.equal((await selfServe(3, "pwd")).status, 409);
@@ -197,11 +205,94 @@ test("self-service kiosk preserves priority seating, prevents duplicate booking 
       (await legacyMonitor.json())[0].monitoredSeatIds,
       [1, 2, 3, 4, 5],
     );
+    // A passenger without reservations can discover live buses, but not stale,
+    // disabled or poor-quality GPS devices; device secrets are never returned.
+    await Passenger.create({
+      name: "Fleet test passenger",
+      email: "fleet@example.invalid",
+      emailVerified: true,
+      passwordHash: await hashPassword("test-password-123"),
+    });
+    const passengerLogin = await fetch(base + "/passengers/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: "fleet@example.invalid",
+        password: "test-password-123",
+      }),
+    });
+    assert.equal(passengerLogin.status, 200);
+    const passengerCookie = passengerLogin.headers
+      .get("set-cookie")
+      .split(";")[0];
+    const fix = { lat: 14.4, lon: 120.97, updatedAt: new Date(), accuracy: 10 };
+    await Bus.updateOne({ _id: bus._id }, { $set: { location: fix } });
+    for (const [id, extra] of [
+      ["SECOND-LIVE", { location: fix }],
+      [
+        "STALE",
+        { location: { ...fix, updatedAt: new Date(Date.now() - 180000) } },
+      ],
+      ["DISABLED", { location: fix, trackingEnabled: false }],
+      ["POOR-GPS", { location: { ...fix, accuracy: 500 } }],
+    ])
+      await Bus.create({
+        busId: id,
+        name: id,
+        from: "SM Pala-Pala",
+        to: "PITX",
+        totalSeats: 1,
+        ...extra,
+      });
+    const fleetResponse = await fetch(base + "/tracking", {
+      headers: { Cookie: passengerCookie },
+    });
+    assert.equal(fleetResponse.status, 200);
+    const fleet = await fleetResponse.json();
+    assert.deepEqual(fleet.map((b) => b.busId).sort(), [
+      "PRIORITY-TEST-BUS",
+      "SECOND-LIVE",
+    ]);
+    assert.equal(
+      fleet.find((b) => b.busId === bus.busId).seats.find((s) => s.id === 3)
+        .status,
+      "booked",
+    );
+    assert.equal(fleet[0].online, true);
+    assert.equal(fleet[0].from, "SM Pala-Pala");
+    assert.equal(fleet[0].deviceTokenHash, undefined);
+    assert.equal((await fetch(base + "/tracking")).status, 401);
   } finally {
     if (server) await new Promise((resolve) => server.close(resolve));
     await mongoose.disconnect();
     await memory.stop();
   }
+});
+
+test("GPS discovery does not require a proximity target and rejects stale or invalid fixes", () => {
+  const now = Date.now();
+  const bus = {
+    location: {
+      lat: 14.4,
+      lon: 120.97,
+      updatedAt: new Date(now),
+      accuracy: 10,
+    },
+  };
+  assert.equal(gpsOnline(bus, now), true);
+  assert.equal(gpsOnline(bus, now + 120001), false);
+  assert.equal(gpsOnline({ ...bus, trackingEnabled: false }, now), false);
+  assert.equal(
+    gpsOnline({ location: { ...bus.location, lat: 100 } }, now),
+    false,
+  );
+  assert.equal(
+    gpsOnline(
+      { location: { ...bus.location, updatedAt: new Date(now + 31000) } },
+      now,
+    ),
+    false,
+  );
 });
 
 test("61-seat layout has five priority seats and six seats in the last row", () => {

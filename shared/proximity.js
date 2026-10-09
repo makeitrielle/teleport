@@ -8,6 +8,25 @@ export function validCoordinates(lat, lon) {
     lon <= 180
   );
 }
+export function gpsOnline(bus, now = Date.now()) {
+  const loc = bus.location || {};
+  const updated = new Date(loc.updatedAt).getTime();
+  return (
+    bus.trackingEnabled !== false &&
+    validCoordinates(loc.lat, loc.lon) &&
+    Boolean(loc.updatedAt) &&
+    Number.isFinite(updated) &&
+    now - updated <= 120000 &&
+    updated <= now + 30000 &&
+    ((Number.isFinite(loc.accuracy) &&
+      loc.accuracy >= 0 &&
+      loc.accuracy <= 50) ||
+      ([2, 3].includes(loc.fixStatus) &&
+        Number.isFinite(loc.dop) &&
+        loc.dop > 0 &&
+        loc.dop <= 3))
+  );
+}
 export function haversineMeters(lat1, lon1, lat2, lon2) {
   const rad = (n) => (n * Math.PI) / 180;
   const a =

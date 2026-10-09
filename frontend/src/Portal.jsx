@@ -29,12 +29,15 @@ import {
   TileLayer,
   Marker,
   Popup,
+  Polyline,
+  useMap,
   useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { api, request } from "./api.js";
 import { FARE_MATRIX, fareDirectionForRoute } from "../../shared/fareMatrix.js";
+import { gpsOnline, haversineMeters } from "../../shared/proximity.js";
 import {
   canUseSeat,
   isPrioritySeat,
@@ -201,6 +204,105 @@ function MapClick({ setPoint }) {
     click: (e) => setPoint({ lat: e.latlng.lat, lon: e.latlng.lng }),
   });
   return null;
+}
+const kioskRouteCache = new Map();
+function FitKioskRoute({ points }) {
+  const map = useMap();
+  useEffect(() => {
+    if (points.length > 1) map.fitBounds(points, { padding: [24, 24] });
+  }, [map, points]);
+  return null;
+}
+function useRoadRoute(from, to) {
+  const [route, setRoute] = useState(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!from || !to) {
+      setRoute(null);
+      setError("");
+      return;
+    }
+    let active = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    setRoute(null);
+    setError("");
+    const load = async () => {
+      const key = `${from}|${to}`;
+      if (kioskRouteCache.has(key)) return kioskRouteCache.get(key);
+      const stops = [];
+      for (const name of [from, to]) {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ph&q=${encodeURIComponent(name + ", Philippines")}`,
+          { signal: controller.signal },
+        );
+        if (!response.ok) throw new Error("Route unavailable");
+        const results = await response.json();
+        if (!results.length) throw new Error("Route unavailable");
+        stops.push([Number(results[0].lat), Number(results[0].lon)]);
+      }
+      const response = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${stops.map(([lat, lon]) => `${lon},${lat}`).join(";")}?overview=full&geometries=geojson`,
+        { signal: controller.signal },
+      );
+      if (!response.ok) throw new Error("Route unavailable");
+      const data = await response.json();
+      const coordinates = data.routes?.[0]?.geometry?.coordinates;
+      if (!coordinates?.length) throw new Error("Route unavailable");
+      const result = {
+        stops,
+        points: coordinates.map(([lon, lat]) => [lat, lon]),
+      };
+      kioskRouteCache.set(key, result);
+      return result;
+    };
+    load()
+      .then((result) => active && setRoute(result))
+      .catch(() => {
+        if (active)
+          setError(
+            "Route preview unavailable. You can still choose a fare point.",
+          );
+      })
+      .finally(() => clearTimeout(timeout));
+    return () => {
+      active = false;
+      controller.abort();
+      clearTimeout(timeout);
+    };
+  }, [from, to]);
+  return { route, error };
+}
+function KioskRouteMap({ from, to }) {
+  const { route, error } = useRoadRoute(from, to);
+  return (
+    <div aria-label="Bus route preview">
+      <p className="kiosk-map-hint">
+        {from} → {to} · Route preview
+      </p>
+      <MapContainer center={[14.4, 120.97]} zoom={11} className="tracking-map">
+        <TileLayer
+          attribution="© OpenStreetMap contributors"
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        {route && (
+          <>
+            <FitKioskRoute points={route.points} />
+            <Polyline
+              positions={route.points}
+              pathOptions={{ color: "#c96a2b", weight: 5 }}
+            />
+            {route.stops.map((position, index) => (
+              <Marker key={index} position={position} icon={markerIcon}>
+                <Popup>{index ? to : from}</Popup>
+              </Marker>
+            ))}
+          </>
+        )}
+      </MapContainer>
+      {!route && <p role="status">{error || "Loading route preview…"}</p>}
+    </div>
+  );
 }
 function Dropoff({ point, setPoint, compact = false }) {
   const CoordinateFields = compact ? "details" : "div";
@@ -859,8 +961,8 @@ export default function Portal() {
       </main>
       {!staffPage && (
         <footer>
-          SM Pala-Pala · One account, one shared reservation record · Times shown
-          in Philippine time
+          SM Pala-Pala · One account, one shared reservation record · Times
+          shown in Philippine time
         </footer>
       )}
     </div>
@@ -1456,7 +1558,6 @@ function Walkup({ run, open, close }) {
     [seat, setSeat] = useState(""),
     [destination, setDestination] = useState(""),
     [category, setCategory] = useState("regular"),
-    [point, setPoint] = useState(null),
     [pending, setPending] = useState(false),
     [step, setStep] = useState(0);
   useEffect(() => {
@@ -1497,12 +1598,7 @@ function Walkup({ run, open, close }) {
         s.status === "available" &&
         s.occupancy === "available",
     ),
-    seatValid = available.some((s) => s.id === Number(seat)),
-    pointValid =
-      Number.isFinite(point?.lat) &&
-      Number.isFinite(point?.lon) &&
-      Math.abs(point.lat) <= 90 &&
-      Math.abs(point.lon) <= 180;
+    seatValid = available.some((s) => s.id === Number(seat));
   return (
     <section className="video-kiosk-flow">
       <KioskSteps active={step} />
@@ -1526,7 +1622,7 @@ function Walkup({ run, open, close }) {
             setStep(step + 1);
             return;
           }
-          if (!seatValid || !fare || !pointValid) return;
+          if (!seatValid || !fare) return;
           setPending(true);
           run(async () => {
             const t = await api.createKioskTicket({
@@ -1536,7 +1632,6 @@ function Walkup({ run, open, close }) {
               routeTo: bus.to,
               to: destination,
               distanceKm: fare.distanceKm,
-              dropoffLocation: point,
               passengerType: category,
               eligibilityDeclared: category !== "regular",
             });
@@ -1557,7 +1652,6 @@ function Walkup({ run, open, close }) {
                     setBusId(e.target.value);
                     setSeat("");
                     setDestination("");
-                    setPoint(null);
                   }}
                 >
                   {buses.map((b) => (
@@ -1664,7 +1758,7 @@ function Walkup({ run, open, close }) {
                 ))}
               </select>
             </Field>
-            <Dropoff point={point} setPoint={setPoint} compact />
+            {bus && <KioskRouteMap from={bus.from} to={bus.to} />}
             {fare && (
               <div className="kiosk-fare-summary">
                 <strong>{destination}</strong>
@@ -1695,9 +1789,7 @@ function Walkup({ run, open, close }) {
           <button
             className="primary"
             disabled={
-              pending ||
-              (step > 0 && !seatValid) ||
-              (step === 2 && (!fare || !pointValid))
+              pending || (step > 0 && !seatValid) || (step === 2 && !fare)
             }
           >
             {pending
@@ -2315,6 +2407,277 @@ function Activity({ run, refresh, passenger = false }) {
     </section>
   );
 }
+const nearbyBusIcon = L.divIcon({
+  className: "nearby-bus-marker",
+  html: '<span aria-hidden="true">🚌</span>',
+  iconSize: [38, 38],
+  iconAnchor: [19, 19],
+});
+const passengerLocationIcon = L.divIcon({
+  className: "passenger-location-marker",
+  html: "<span></span>",
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+});
+function NearbyMapBounds({ points, viewKey }) {
+  const map = useMap();
+  useEffect(() => {
+    if (points.length > 1)
+      map.fitBounds(points, { padding: [35, 35], maxZoom: 15 });
+    else if (points.length) map.setView(points[0], 14);
+  }, [map, viewKey]);
+  return null;
+}
+function busSeatCounts(bus) {
+  const seats = bus.seats || [];
+  return {
+    available: seats.filter(
+      (s) =>
+        isSeatMonitored(bus, s.id) &&
+        liveSeat(s) &&
+        s.occupancy === "available" &&
+        s.status !== "booked",
+    ).length,
+    unavailable: seats.filter(
+      (s) =>
+        s.status === "booked" ||
+        (isSeatMonitored(bus, s.id) &&
+          liveSeat(s) &&
+          s.occupancy === "occupied"),
+    ).length,
+    unknown: seats.filter(
+      (s) =>
+        s.status !== "booked" && (!isSeatMonitored(bus, s.id) || !liveSeat(s)),
+    ).length,
+  };
+}
+function NearbyPassengerMap({ items }) {
+  const [position, setPosition] = useState(null);
+  const [locate, setLocate] = useState(false);
+  const [locationMessage, setLocationMessage] = useState("");
+  const [radius, setRadius] = useState(5);
+  const [selectedId, setSelectedId] = useState("");
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 10000);
+    return () => clearInterval(timer);
+  }, []);
+  useEffect(() => {
+    if (!locate) return;
+    if (!navigator.geolocation) {
+      setLocationMessage("Location is unavailable on this device.");
+      setLocate(false);
+      return;
+    }
+    setLocationMessage("Finding your location…");
+    const id = navigator.geolocation.watchPosition(
+      (p) => {
+        setPosition({
+          lat: p.coords.latitude,
+          lon: p.coords.longitude,
+          accuracy: p.coords.accuracy,
+          timestamp: p.timestamp,
+        });
+        setLocationMessage("");
+      },
+      () => {
+        setPosition(null);
+        setLocationMessage(
+          "Location unavailable. Allow location access to find nearby buses.",
+        );
+        setLocate(false);
+      },
+      { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 },
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }, [locate]);
+  const user = position && now - position.timestamp <= 120000 ? position : null;
+  const online = (items || []).filter((b) => gpsOnline(b, now));
+  const nearby = online
+    .map((b) => ({
+      ...b,
+      nearbyDistance: user
+        ? haversineMeters(user.lat, user.lon, b.location.lat, b.location.lon)
+        : null,
+    }))
+    .filter((b) => !user || b.nearbyDistance <= radius * 1000)
+    .sort((a, b) =>
+      user
+        ? a.nearbyDistance - b.nearbyDistance
+        : a.busId.localeCompare(b.busId),
+    );
+  const selected = nearby.find((b) => b.id === selectedId) || nearby[0];
+  const { route, error } = useRoadRoute(selected?.from, selected?.to);
+  const bounds = [
+    ...nearby.map((b) => [b.location.lat, b.location.lon]),
+    ...(user ? [[user.lat, user.lon]] : []),
+    ...(route?.points || []),
+  ];
+  const selectedCounts = selected && busSeatCounts(selected);
+  return (
+    <section className="nearby-passenger-map">
+      <div className="nearby-map-toolbar">
+        <div>
+          <h1>{user ? "Buses near you" : "Online buses"}</h1>
+          <p>
+            {user
+              ? `${nearby.length} buses within ${radius} km · Location accuracy about ${Math.round(user.accuracy)} m`
+              : "Enable your location to see which buses are nearby."}
+          </p>
+        </div>
+        <button
+          className="primary"
+          onClick={() => {
+            setPosition(null);
+            setLocate(!locate);
+          }}
+        >
+          <MapPin size={17} />
+          {locate ? "Stop using my location" : "Use my location"}
+        </button>
+        <Field label="Nearby range">
+          <select
+            value={radius}
+            onChange={(e) => setRadius(Number(e.target.value))}
+          >
+            {[1, 5, 10, 25].map((n) => (
+              <option key={n} value={n}>
+                {n} km
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+      {locationMessage && <p role="status">{locationMessage}</p>}
+      <div className="nearby-map-layout">
+        <div className="nearby-map-panel">
+          <MapContainer
+            center={[14.4, 120.97]}
+            zoom={11}
+            className="nearby-live-map"
+          >
+            <TileLayer
+              attribution="© OpenStreetMap contributors"
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <NearbyMapBounds
+              points={bounds}
+              viewKey={`${nearby.map((b) => b.id).join(",")}|${selected?.id}|${Boolean(user)}|${route?.points.length}`}
+            />
+            {route && (
+              <Polyline
+                positions={route.points}
+                pathOptions={{ color: "#168451", weight: 5, opacity: 0.85 }}
+              />
+            )}
+            {user && (
+              <Marker
+                position={[user.lat, user.lon]}
+                icon={passengerLocationIcon}
+              >
+                <Popup>You are here</Popup>
+              </Marker>
+            )}
+            {nearby.map((b) => (
+              <Marker
+                key={b.id}
+                position={[b.location.lat, b.location.lon]}
+                icon={nearbyBusIcon}
+                eventHandlers={{ click: () => setSelectedId(b.id) }}
+              >
+                <Popup>
+                  <strong>{b.busId}</strong>
+                  <br />
+                  {b.route}
+                  <br />
+                  {busSeatCounts(b).available} available seats
+                </Popup>
+              </Marker>
+            ))}
+          </MapContainer>
+          {selected && (
+            <article className="nearby-selected-card">
+              <span className="homeCardIcon seats">
+                <Bus size={23} />
+              </span>
+              <div>
+                <strong>
+                  {selected.busId} · {selected.name}
+                </strong>
+                <p>{selected.route}</p>
+                <small>Live GPS · Updated {date(selected.lastUpdated)}</small>
+              </div>
+              <strong className="nearby-seat-total">
+                {selectedCounts.available}
+                <small>available seats</small>
+              </strong>
+            </article>
+          )}
+          {selected && (
+            <p className="nearby-route-note">
+              {error
+                ? "Road route preview unavailable. Live bus locations are still shown."
+                : route
+                  ? "Green line: selected bus route preview. Blue dot: your location."
+                  : "Loading selected bus route…"}
+            </p>
+          )}
+        </div>
+        <aside className="nearby-bus-list" aria-label="Online bus list">
+          {items === null ? (
+            <Empty>Loading online buses…</Empty>
+          ) : !nearby.length ? (
+            <Empty>
+              {user
+                ? `No online buses within ${radius} km. Try a wider range.`
+                : "No buses are sending a fresh GPS location right now."}
+            </Empty>
+          ) : (
+            nearby.map((b) => {
+              const counts = busSeatCounts(b);
+              return (
+                <button
+                  key={b.id}
+                  className={`nearby-bus-card${selected?.id === b.id ? " selected" : ""}`}
+                  aria-pressed={selected?.id === b.id}
+                  onClick={() => setSelectedId(b.id)}
+                >
+                  <div className="row">
+                    <strong>
+                      <Bus size={18} /> {b.busId}
+                    </strong>
+                    <span className="nearby-online-badge">ONLINE</span>
+                  </div>
+                  <p>{b.route}</p>
+                  <small>
+                    {user
+                      ? `${(b.nearbyDistance / 1000).toFixed(1)} km away`
+                      : "Distance needs your location"}
+                  </small>
+                  <div className="nearby-seat-counts">
+                    <span>
+                      <strong>{counts.available}</strong> available
+                    </span>
+                    <span>
+                      <strong>{counts.unavailable}</strong> occupied / reserved
+                    </span>
+                    <span>
+                      <strong>{counts.unknown}</strong> unknown
+                    </span>
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </aside>
+      </div>
+      <p className="nearby-route-note">
+        Updates every 10 seconds. Buses disappear when their GPS is stale. Seat
+        availability uses sensor readings and reservations.
+      </p>
+    </section>
+  );
+}
 function Tracking({ run, refresh, passenger = false }) {
   const [items, setItems] = useState(null),
     [paused, setPaused] = useState(false);
@@ -2341,6 +2704,7 @@ function Tracking({ run, refresh, passenger = false }) {
       clearInterval(timer);
     };
   }, [refresh, paused]);
+  if (passenger) return <NearbyPassengerMap items={items} />;
   return (
     <section className={passenger ? "passenger-tracking" : undefined}>
       {!passenger && (

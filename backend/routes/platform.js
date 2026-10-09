@@ -19,7 +19,11 @@ import {
   rateLimit,
   hashToken,
 } from "../security.js";
-import { validCoordinates, proximityState } from "../../shared/proximity.js";
+import {
+  validCoordinates,
+  proximityState,
+  gpsOnline,
+} from "../../shared/proximity.js";
 import { farePointForRoute } from "../../shared/fareMatrix.js";
 
 const router = express.Router();
@@ -594,19 +598,23 @@ router.post(
   },
 );
 router.get("/tracking", requireAuth, async (req, res) => {
-  let filter = {};
-  if (req.auth.role === "passenger") {
-    const tickets = await Ticket.find({
-      passengerId: req.auth.userId,
-      status: "active",
-    }).select("busId");
-    filter = { _id: { $in: tickets.map((t) => t.busId) } };
-  }
-  const buses = await withReservationStatus(await Bus.find(filter).lean());
+  const passenger = req.auth.role === "passenger";
+  const records = await Bus.find(
+    passenger ? { trackingEnabled: { $ne: false } } : {},
+  ).lean();
+  const buses = await withReservationStatus(
+    passenger ? records.filter((b) => gpsOnline(b)) : records,
+  );
   res.json(
     buses.map((b) => ({
       ...proximityState(b),
       id: b._id,
+      name: b.name,
+      from: b.from,
+      to: b.to,
+      totalSeats: b.totalSeats,
+      monitoredSeatIds: b.monitoredSeatIds,
+      online: gpsOnline(b),
       route: `${b.from} → ${b.to}`,
       targetCoordinates: b.proximityTarget,
       location: b.location,
