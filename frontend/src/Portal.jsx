@@ -857,10 +857,12 @@ export default function Portal() {
           </>
         )}
       </main>
-      <footer>
-        SM Pala-Pala · One account, one shared reservation record · Times shown
-        in Philippine time
-      </footer>
+      {!staffPage && (
+        <footer>
+          SM Pala-Pala · One account, one shared reservation record · Times shown
+          in Philippine time
+        </footer>
+      )}
     </div>
   );
 }
