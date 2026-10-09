@@ -113,7 +113,7 @@ Print Receipt sends authenticated, one-use jobs through the existing WebSocket a
 
 Definite failures allow retry. A disconnected or unconfirmed job is marked uncertain to prevent accidental duplicates. Staff must inspect the physical printer, then resolve the uncertain result from the ticket screen. Already printed receipts require staff authorization to reprint. A receipt does not create a new booking or prove bus proximity. One active print agent is supported; connecting another replaces the previous agent.
 
-Sign in on `/staff/` on the kiosk computer to activate ticket issuance, then open `/kiosk/`. Touch Screen to Begin requests fullscreen and opens seat selection, passenger type, destination and ticket creation. The kiosk generates a QR receipt for the passenger app without requiring a ticket scan or camera. Finish returns to the welcome screen; kiosk receipts also reset after 90 seconds. For browser chrome control, use your Windows browser kiosk deployment configuration.
+Sign in on `/staff/` on the kiosk computer to activate ticket issuance, then open `/kiosk/`. Touch Screen to Begin requests fullscreen and opens passenger type, seat selection, destination and ticket creation. First-row seats (the first four seats in the bus layout) are restricted to verified PWD and senior passengers. The kiosk generates a QR receipt for the passenger app without requiring a ticket scan or camera. Finish returns to the welcome screen; kiosk receipts also reset after 90 seconds. For browser chrome control, use your Windows browser kiosk deployment configuration.
 
 ## Verification completed and live checks remaining
 

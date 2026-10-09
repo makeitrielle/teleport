@@ -35,6 +35,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { api, request } from "./api.js";
 import { FARE_MATRIX, fareDirectionForRoute } from "../../shared/fareMatrix.js";
+import { canUseSeat, isPrioritySeat } from "../../shared/seatPolicy.js";
 import "./portal.css";
 
 const call = (path, data, method = "POST") =>
@@ -1483,6 +1484,7 @@ function Walkup({ run, open, close }) {
     fare = fares.find((p) => p.landmark === destination),
     available = (bus?.seats || []).filter(
       (s) =>
+        canUseSeat(bus, s.id, category) &&
         bus.monitoredSeatIds.includes(s.id) &&
         liveSeat(s) &&
         s.status === "available" &&
@@ -1499,7 +1501,7 @@ function Walkup({ run, open, close }) {
       <KioskSteps active={step} />
       <h1>
         {
-          ["Tap your seat", "Passenger type", "Where are you getting off?"][
+          ["Passenger type", "Tap your seat", "Where are you getting off?"][
             step
           ]
         }
@@ -1537,7 +1539,7 @@ function Walkup({ run, open, close }) {
           }).finally(() => setPending(false));
         }}
       >
-        {step === 0 && (
+        {step === 1 && (
           <>
             {buses.length > 1 && (
               <Field label="Bus">
@@ -1559,6 +1561,9 @@ function Walkup({ run, open, close }) {
                 </select>
               </Field>
             )}
+            <p className="kiosk-priority-note">
+              First row: PWD and senior passengers only.
+            </p>
             <div className="kiosk-seat-legend">
               <span>Available</span>
               <span>Occupied / reserved</span>
@@ -1571,19 +1576,21 @@ function Walkup({ run, open, close }) {
               <div className="kiosk-seat-layout">
                 {(bus?.seats || []).map((s, i) => {
                   const ok = available.some((a) => a.id === s.id);
+                  const priorityOnly = !canUseSeat(bus, s.id, category);
                   return (
                     <button
                       type="button"
                       key={s.id}
                       style={{ gridColumn: (i % 4) + (i % 4 >= 2 ? 2 : 1) }}
-                      className={`kiosk-seat-button ${!liveSeat(s) ? "offline" : !ok ? "occupied" : "available"} ${Number(seat) === s.id ? "selected" : ""}`}
+                      className={`kiosk-seat-button ${priorityOnly ? "priority" : !liveSeat(s) ? "offline" : !ok ? "occupied" : "available"} ${Number(seat) === s.id ? "selected" : ""}`}
                       disabled={!ok || pending}
                       aria-pressed={Number(seat) === s.id}
-                      aria-label={`Seat ${s.id}${!ok ? (!liveSeat(s) ? ", sensor unavailable" : ", unavailable") : ""}`}
+                      aria-label={`Seat ${s.id}${!ok ? (priorityOnly ? ", PWD and senior only" : !liveSeat(s) ? ", sensor unavailable" : ", unavailable") : ""}`}
                       onClick={() => setSeat(String(s.id))}
                     >
                       <Armchair size={20} />
                       <span>{s.id}</span>
+                      {isPrioritySeat(bus, s.id) && <small>Priority</small>}
                     </button>
                   );
                 })}
@@ -1591,13 +1598,13 @@ function Walkup({ run, open, close }) {
             </div>
             {bus && !available.length && (
               <p className="kiosk-no-seats">
-                No seats with a fresh available sensor reading. Please ask staff
-                for help.
+                No eligible seats with a fresh available sensor reading. Please
+                ask staff for help.
               </p>
             )}
           </>
         )}
-        {step === 1 && (
+        {step === 0 && (
           <>
             <div className="kiosk-category-grid">
               {Object.entries(categories).map(([key, label]) => (
@@ -1608,6 +1615,7 @@ function Walkup({ run, open, close }) {
                   className={category === key ? "selected" : ""}
                   onClick={() => {
                     setCategory(key);
+                    setSeat("");
                     setVerified(false);
                   }}
                 >
@@ -1678,8 +1686,8 @@ function Walkup({ run, open, close }) {
             className="primary"
             disabled={
               pending ||
-              !seatValid ||
-              (step > 0 && category !== "regular" && !verified) ||
+              (step > 0 && !seatValid) ||
+              (category !== "regular" && !verified) ||
               (step === 2 && (!fare || !pointValid))
             }
           >
@@ -3040,8 +3048,9 @@ function Guide() {
         </li>
         <li>
           <strong>Create a kiosk ticket.</strong> Staff activates the kiosk from
-          the staff page. Tap Touch Screen to Begin, then choose an available
-          seat, passenger type and destination.
+          the staff page. Tap Touch Screen to Begin, then choose passenger type,
+          an available seat and destination. The first row is reserved for PWD
+          and senior passengers.
         </li>
         <li>
           <strong>Review your category.</strong> Regular, Student, PWD or Senior

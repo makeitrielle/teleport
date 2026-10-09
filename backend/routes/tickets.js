@@ -6,6 +6,7 @@ import Trip from "../models/Trip.js";
 import { farePointForRoute } from "../../shared/fareMatrix.js";
 import { requireAuth, requireStaff, guardId, hashToken } from "../security.js";
 import { audit } from "../models/Activity.js";
+import { canUseSeat } from "../../shared/seatPolicy.js";
 const router = express.Router();
 router.get("/", requireAuth, async (req, res) => {
   const filter =
@@ -38,6 +39,12 @@ router.post("/", requireStaff, async (req, res) => {
     });
   const bus = await Bus.findById(busId);
   if (!bus) return res.status(404).json({ error: "Bus not found." });
+  if (!canUseSeat(bus, seatId, passengerType))
+    return res
+      .status(403)
+      .json({
+        error: "First-row seats are reserved for PWD and senior passengers.",
+      });
   // Keep physical walk-ups from bypassing a published scheduled seat allocation.
   if (
     await Trip.exists({
@@ -46,12 +53,10 @@ router.post("/", requireStaff, async (req, res) => {
       departureAt: { $gt: new Date() },
     })
   )
-    return res
-      .status(409)
-      .json({
-        error:
-          "This bus uses published reservations. Reserve through its scheduled trip to avoid conflicting seat allocations.",
-      });
+    return res.status(409).json({
+      error:
+        "This bus uses published reservations. Reserve through its scheduled trip to avoid conflicting seat allocations.",
+    });
   const fare = farePointForRoute(from || bus.from, routeTo || bus.to, to);
   if (!fare || distanceKm !== fare.distanceKm)
     return res
