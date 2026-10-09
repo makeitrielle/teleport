@@ -1,0 +1,15 @@
+{
+  "name": "sm-palapala-reservations",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "npm --prefix backend install && npm --prefix frontend install",
+    "dev:api": "npm --prefix backend run dev",
+    "dev:web": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "test": "npm --prefix backend test"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

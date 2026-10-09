@@ -3,9 +3,11 @@
 // as the site (production reverse proxy) and Vite's /api dev proxy locally.
 const BASE_URL = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
 
-async function request(path, options = {}) {
+export async function request(path, options = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    signal: AbortSignal.timeout(25000),
     ...options,
   });
   let body = null;

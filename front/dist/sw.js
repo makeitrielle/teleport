@@ -1,4 +1,4 @@
-const CACHE_NAME = "tele-port-shell-v1";
+const CACHE_NAME = "tele-port-shell-v2";
 const APP_ROOT = "/";
 
 self.addEventListener("install", (event) => {

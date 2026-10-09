@@ -17,11 +17,13 @@ function wrap(text, width = WIDTH) {
   let line = "";
   for (const word of words) {
     if (word.length > width) {
-      if (line) lines.push(line), line = "";
-      for (let i = 0; i < word.length; i += width) lines.push(word.slice(i, i + width));
+      if (line) (lines.push(line), (line = ""));
+      for (let i = 0; i < word.length; i += width)
+        lines.push(word.slice(i, i + width));
       continue;
     }
-    if (line && `${line} ${word}`.length > width) lines.push(line), line = word;
+    if (line && `${line} ${word}`.length > width)
+      (lines.push(line), (line = word));
     else line = line ? `${line} ${word}` : word;
   }
   if (line) lines.push(line);
@@ -34,13 +36,23 @@ function textLine(value) {
 
 function qrCommands(value) {
   const data = Buffer.from(value, "ascii");
-  if (data.length > 700) throw new Error("Ticket QR link is too long for the XP-58 printer.");
+  if (data.length > 700)
+    throw new Error("Ticket QR link is too long for the XP-58 printer.");
   const p = data.length + 3;
   return Buffer.concat([
     Buffer.from([0x1d, 0x28, 0x6b, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00]), // QR model 2
     Buffer.from([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x43, 0x05]), // module size
     Buffer.from([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x45, 0x31]), // error correction L
-    Buffer.from([0x1d, 0x28, 0x6b, p & 0xff, (p >> 8) & 0xff, 0x31, 0x50, 0x30]),
+    Buffer.from([
+      0x1d,
+      0x28,
+      0x6b,
+      p & 0xff,
+      (p >> 8) & 0xff,
+      0x31,
+      0x50,
+      0x30,
+    ]),
     data,
     Buffer.from([0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30]), // print QR
   ]);
@@ -53,20 +65,47 @@ function makeReceipt(ticket, cutAfterPrint) {
     textLine("JASPER JEAN"),
     Buffer.from([0x1d, 0x21, 0x00, 0x1b, 0x45, 0x00]),
     textLine("BUS LINER - PASSENGER TICKET"),
+    textLine("SM PALA-PALA RESERVATION"),
     textLine("*******************************"),
     Buffer.from([0x1b, 0x61, 0x00]),
   ];
 
   const rows = [
+    ["REFERENCE:", ticket.bookingReference],
+    ["STATUS:", ticket.reservationStatus],
     ["ROUTE:", ticket.route],
     ["BUS NUMBER:", ticket.busNumber],
-    ["DATE:", new Date(ticket.issuedAt || Date.now()).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" })],
+    [
+      "DATE:",
+      new Date(ticket.issuedAt || Date.now()).toLocaleString("en-PH", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+    ],
+    ticket.departureAt
+      ? [
+          "DEPARTURE:",
+          new Date(ticket.departureAt).toLocaleString("en-PH", {
+            timeZone: "Asia/Manila",
+          }),
+        ]
+      : null,
+    ticket.confirmedAt
+      ? [
+          "CONFIRMED:",
+          new Date(ticket.confirmedAt).toLocaleString("en-PH", {
+            timeZone: "Asia/Manila",
+          }),
+        ]
+      : null,
     ticket.driver ? ["DRIVER:", ticket.driver] : null,
     ["PASSENGER:", String(ticket.passengerType || "regular").toUpperCase()],
     ["RIDE:", ticket.ride],
     ["FROM:", ticket.from],
     ["TO:", ticket.to],
-    ticket.distanceKm ? ["DISTANCE:", `${Number(ticket.distanceKm).toFixed(1)} KM`] : null,
+    ticket.distanceKm
+      ? ["DISTANCE:", `${Number(ticket.distanceKm).toFixed(1)} KM`]
+      : null,
   ].filter(Boolean);
 
   for (const [label, value] of rows) {
@@ -86,7 +125,7 @@ function makeReceipt(ticket, cutAfterPrint) {
     Buffer.from([0x1b, 0x61, 0x01]),
     qrCommands(ticket.scanUrl),
     Buffer.from([0x1b, 0x64, 0x02]),
-    textLine("SCAN QR FOR BUS ETA"),
+    textLine("SCAN QR TO VERIFY RESERVATION"),
     textLine("POWERED BY TELE-PORT"),
     Buffer.from([0x1b, 0x64, 0x03]),
   );
@@ -129,16 +168,39 @@ public static class TeleportRawPrinter {
 }`;
 
 export async function printTicket(ticket) {
-  if (process.platform !== "win32") throw new Error("The Tele-port print agent must run on the Windows kiosk computer.");
+  if (process.platform !== "win32")
+    throw new Error(
+      "The Tele-port print agent must run on the Windows kiosk computer.",
+    );
   const printerName = process.env.PRINTER_NAME || "XP-58";
   const cutAfterPrint = process.env.CUT_AFTER_PRINT === "true";
   const bytes = makeReceipt(ticket, cutAfterPrint).toString("base64");
   const encodedName = Buffer.from(printerName, "utf8").toString("base64");
   const script = `$ErrorActionPreference='Stop'; Add-Type -TypeDefinition @'\n${RAW_PRINT_CSHARP}\n'@; $n=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encodedName}')); $b=[Convert]::FromBase64String('${bytes}'); [TeleportRawPrinter]::Send($n,$b); Write-Output 'PRINT_ACCEPTED'`;
   try {
-    const { stdout } = await execFileAsync("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script], { windowsHide: true, timeout: 20_000, maxBuffer: 1_000_000 });
-    if (!stdout.includes("PRINT_ACCEPTED")) throw new Error("Windows did not confirm the raw print job.");
+    const { stdout } = await execFileAsync(
+      "powershell.exe",
+      [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        script,
+      ],
+      { windowsHide: true, timeout: 20_000, maxBuffer: 1_000_000 },
+    );
+    if (!stdout.includes("PRINT_ACCEPTED"))
+      throw new Error("Windows did not confirm the raw print job.");
   } catch (error) {
-    throw new Error(error.stderr?.trim() || error.message || "Windows could not send the ticket to the printer.");
+    // execFile errors can echo the entire command, including encoded QR data.
+    // A partial write or timeout also cannot establish that nothing printed.
+    throw Object.assign(
+      new Error(
+        "Windows could not confirm the receipt. Check the printer and queue before retrying.",
+      ),
+      { uncertain: true },
+    );
   }
 }

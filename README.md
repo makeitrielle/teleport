@@ -20,7 +20,7 @@ teleport-full-stack/
 Open a terminal and run:
 
 ```bash
-cd back
+cd backend
 npm install
 ```
 
@@ -46,14 +46,14 @@ npm run seed
 
 **Warning:** The seed script deletes existing database records before creating the demo data. Do not run it on a database containing data that must be preserved.
 
-See `back/README.md` for backend configuration, API routes, MongoDB setup, printing, and voice-alert information.
+See `backend/README.md` for backend configuration, API routes, MongoDB setup, printing, and voice-alert information.
 
 ## 2. Frontend
 
 Open a second terminal:
 
 ```bash
-cd front
+cd frontend
 npm install
 npm run dev
 ```
@@ -64,11 +64,11 @@ The Vite development server normally runs on:
 http://localhost:5173
 ```
 
-The frontend communicates with the backend through `front/src/api.js`.
+The frontend communicates with the backend through `frontend/src/api.js`.
 
 The application provides the bus, route, passenger, ticket, seat, notification, and kiosk-management interfaces.
 
-If the backend is unavailable, some frontend functionality may use local/demo data depending on the feature.
+A live backend is required for reservations and verification; the active application has no demo fallback.
 
 ## 3. Firmware
 
@@ -200,7 +200,7 @@ Typical development setup:
 **Terminal 1 — Backend**
 
 ```bash
-cd back
+cd backend
 npm install
 npm run dev
 ```
@@ -208,7 +208,7 @@ npm run dev
 **Terminal 2 — Frontend**
 
 ```bash
-cd front
+cd frontend
 npm install
 npm run dev
 ```

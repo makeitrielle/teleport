@@ -13,6 +13,12 @@
 const char* WIFI_SSID = "YOUR_WIFI_SSID";
 const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 const char* API_BASE_URL = "http://YOUR_SERVER_LAN_IP:4000/api";
+const char* BUS_ID = "BUS-001";
+#if __has_include("device_config.h")
+#include "device_config.h"
+#else
+#define TELEPORT_DEVICE_KEY ""
+#endif
 
 constexpr uint8_t NUM_SEATS = 61;
 constexpr int MEGA_RX_PIN = 16;
@@ -85,6 +91,7 @@ void serialReaderTask(void*) {
 
 bool postSeat(uint8_t seatId, bool occupied) {
   if (WiFi.status() != WL_CONNECTED) return false;
+  if(strlen(TELEPORT_DEVICE_KEY)<32){Serial.println("Configure this bus's device key in device_config.h.");return false;}
 
   WiFiClient client;
   HTTPClient http;
@@ -96,7 +103,8 @@ bool postSeat(uint8_t seatId, bool occupied) {
 
   http.setTimeout(HTTP_TIMEOUT_MS);
   http.addHeader("Content-Type", "application/json");
-  const String body = String("{\"seatId\":") + seatId +
+  http.addHeader("Authorization", String("Bearer ")+TELEPORT_DEVICE_KEY);
+  const String body = String("{\"busId\":\"") + BUS_ID + "\",\"seatId\":" + seatId +
                       ",\"status\":\"" + (occupied ? "booked" : "available") + "\"}";
   const int code = http.POST(body);
   http.end();

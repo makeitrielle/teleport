@@ -22,31 +22,53 @@ export function attachPrintAgent(httpServer) {
     }
 
     const expectedSecret = process.env.AGENT_SECRET;
-    const providedSecret = request.headers.authorization?.replace(/^Bearer\s+/i, "");
+    const providedSecret = request.headers.authorization?.replace(
+      /^Bearer\s+/i,
+      "",
+    );
     if (!secretMatches(providedSecret, expectedSecret)) {
       socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
       socket.destroy();
       return;
     }
 
-    wss.handleUpgrade(request, socket, head, (websocket) => wss.emit("connection", websocket));
+    wss.handleUpgrade(request, socket, head, (websocket) =>
+      wss.emit("connection", websocket),
+    );
   });
 
   wss.on("connection", (websocket) => {
-    if (activeAgent && activeAgent.readyState === WebSocket.OPEN) activeAgent.close(4001, "Replaced by newer print agent");
+    if (activeAgent && activeAgent.readyState === WebSocket.OPEN)
+      activeAgent.close(4001, "Replaced by newer print agent");
     activeAgent = websocket;
     websocket.isAlive = true;
-    websocket.on("pong", () => { websocket.isAlive = true; });
+    websocket.on("pong", () => {
+      websocket.isAlive = true;
+    });
     websocket.on("message", (raw) => {
       let message;
-      try { message = JSON.parse(raw.toString()); } catch { return; }
-      if (message.type !== "print:result" || typeof message.jobId !== "string") return;
+      try {
+        message = JSON.parse(raw.toString());
+      } catch {
+        return;
+      }
+      if (message.type !== "print:result" || typeof message.jobId !== "string")
+        return;
       const pending = pendingJobs.get(message.jobId);
       if (!pending || pending.agent !== websocket) return;
       clearTimeout(pending.timer);
       pendingJobs.delete(message.jobId);
       if (message.ok) pending.resolve({ jobId: message.jobId, printed: true });
-      else pending.reject(new Error(message.error || "The kiosk print agent could not print this receipt."));
+      else
+        pending.reject(
+          Object.assign(
+            new Error(
+              message.error ||
+                "The kiosk print agent could not print this receipt.",
+            ),
+            { uncertain: Boolean(message.uncertain) },
+          ),
+        );
     });
     websocket.on("close", () => {
       if (activeAgent === websocket) activeAgent = null;
@@ -54,7 +76,11 @@ export function attachPrintAgent(httpServer) {
         if (pending.agent !== websocket) continue;
         clearTimeout(pending.timer);
         pendingJobs.delete(jobId);
-        pending.reject(new Error("The kiosk print agent disconnected before confirming the job."));
+        pending.reject(
+          new Error(
+            "The kiosk print agent disconnected before confirming the job.",
+          ),
+        );
       }
     });
   });
@@ -74,16 +100,21 @@ export function attachPrintAgent(httpServer) {
 
 export function getPrintAgentStatus() {
   return {
-    agentConnected: Boolean(activeAgent && activeAgent.readyState === WebSocket.OPEN),
-    message: activeAgent && activeAgent.readyState === WebSocket.OPEN
-      ? "Kiosk print agent is connected"
-      : "Kiosk print agent is offline",
+    agentConnected: Boolean(
+      activeAgent && activeAgent.readyState === WebSocket.OPEN,
+    ),
+    message:
+      activeAgent && activeAgent.readyState === WebSocket.OPEN
+        ? "Kiosk print agent is connected"
+        : "Kiosk print agent is offline",
   };
 }
 
 export function sendPrintJob(ticket) {
   if (!activeAgent || activeAgent.readyState !== WebSocket.OPEN) {
-    throw new Error("Kiosk printer is offline. Start the Tele-port print agent on the kiosk computer.");
+    throw new Error(
+      "Kiosk printer is offline. Start the Tele-port print agent on the kiosk computer.",
+    );
   }
 
   const jobId = crypto.randomUUID();
@@ -93,7 +124,9 @@ export function sendPrintJob(ticket) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       pendingJobs.delete(jobId);
-      reject(new Error("The printer did not confirm the receipt within 20 seconds."));
+      reject(
+        new Error("The printer did not confirm the receipt within 20 seconds."),
+      );
     }, 20_000);
     pendingJobs.set(jobId, { agent, resolve, reject, timer });
     agent.send(payload, (error) => {

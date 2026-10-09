@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "TELE-PORT · Jasper Jean",
+  "name": "SM Pala-Pala Bus Reservations",
   "short_name": "TELE-PORT",
-  "description": "Jasper Jean bus tickets, bus ETA, and seat availability.",
+  "description": "SM Pala-Pala passenger reservations, schedules and tickets.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

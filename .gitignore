@@ -5,3 +5,6 @@ front/dist/
 .env.*
 !.env.example
 .vercel/
+firmware/**/device_config.h
+.test-cache/
+.build/

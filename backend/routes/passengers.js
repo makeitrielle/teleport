@@ -1,6 +1,17 @@
 import express from "express";
 import crypto from "crypto";
 import Passenger from "../models/Passenger.js";
+import {
+  hashPassword,
+  verifyPassword,
+  issueSession,
+  requireAuth,
+  requireAdmin,
+  rateLimit,
+  Session,
+  guardId,
+} from "../security.js";
+import { audit } from "../models/Activity.js";
 
 const router = express.Router();
 
@@ -10,83 +21,141 @@ function hashToken(token) {
 
 async function sendAccountEmail({ to, subject, text, html }) {
   if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
-    throw new Error("Email delivery is not configured. Set RESEND_API_KEY and EMAIL_FROM on the backend.");
+    throw new Error(
+      "Email delivery is not configured. Set RESEND_API_KEY and EMAIL_FROM on the backend.",
+    );
   }
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
-    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [to], subject, text, html }),
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: process.env.EMAIL_FROM,
+      to: [to],
+      subject,
+      text,
+      html,
+    }),
   });
   if (!response.ok) {
     const details = await response.text();
-    console.error("[email] provider rejected message:", response.status, details);
-    throw new Error("We could not send the email right now. Please try again later.");
+    console.error(
+      "[email] provider rejected message:",
+      response.status,
+      details,
+    );
+    throw new Error(
+      "We could not send the email right now. Please try again later.",
+    );
   }
 }
 
 function accountLink(path, token, email) {
   // Use the deployed passenger site when APP_URL is not configured in Render.
   // Keeping localhost as the fallback sends production users to an unusable link.
-  const base = (process.env.APP_URL || "https://www.teleport-app.online").replace(/\/$/, "");
+  const base = (
+    process.env.APP_URL || "https://www.teleport-app.online"
+  ).replace(/\/$/, "");
   return `${base}/?${path}=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
-}
-
-function hashPassword(password) {
-  return crypto.createHash("sha256").update(password).digest("hex");
 }
 
 function safePassenger(passenger) {
   const safe = passenger.toObject();
-  ["passwordHash", "emailVerificationTokenHash", "emailVerificationExpires", "passwordResetTokenHash", "passwordResetExpires"]
-    .forEach((key) => delete safe[key]);
+  [
+    "passwordHash",
+    "emailVerificationTokenHash",
+    "emailVerificationExpires",
+    "passwordResetTokenHash",
+    "passwordResetExpires",
+  ].forEach((key) => delete safe[key]);
   return safe;
 }
 
-router.get("/", async (req, res) => {
-  const passengers = await Passenger.find().select("-passwordHash -emailVerificationTokenHash -emailVerificationExpires -passwordResetTokenHash -passwordResetExpires").sort({ createdAt: 1 });
+router.get("/", requireAdmin, async (req, res) => {
+  const passengers = await Passenger.find()
+    .select(
+      "-passwordHash -emailVerificationTokenHash -emailVerificationExpires -passwordResetTokenHash -passwordResetExpires",
+    )
+    .sort({ createdAt: 1 });
   res.json(passengers);
 });
 
 // POST /api/passengers/signup
-router.post("/signup", async (req, res) => {
+router.post("/signup", rateLimit(8), async (req, res) => {
   const { name, email, phone, password } = req.body;
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: "Name, email, and password are required" });
+  if (
+    typeof name !== "string" ||
+    name.trim().length < 2 ||
+    name.length > 100 ||
+    typeof email !== "string" ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+    !password
+  ) {
+    return res
+      .status(400)
+      .json({ error: "Name, email, and password are required" });
   }
   if (typeof password !== "string" || password.length < 8) {
-    return res.status(400).json({ error: "Password must be at least 8 characters long." });
+    return res
+      .status(400)
+      .json({ error: "Password must be at least 8 characters long." });
   }
 
-  const existing = await Passenger.findOne({ email: email.toLowerCase().trim() });
-  if (existing) return res.status(409).json({ error: "An account with that email already exists" });
+  const existing = await Passenger.findOne({
+    email: email.toLowerCase().trim(),
+  });
+  if (existing)
+    return res
+      .status(409)
+      .json({ error: "An account with that email already exists" });
 
   const emailToken = crypto.randomBytes(32).toString("hex");
   const passenger = await Passenger.create({
     name,
     email: email.toLowerCase().trim(),
     phone,
-    passwordHash: hashPassword(password),
+    passwordHash: await hashPassword(password),
     emailVerified: false,
     emailVerificationTokenHash: hashToken(emailToken),
     emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
   });
   const verifyUrl = accountLink("verify", emailToken, passenger.email);
   try {
-    await sendAccountEmail({ to: passenger.email, subject: "Confirm your Jasper Jean account",
+    await sendAccountEmail({
+      to: passenger.email,
+      subject: "Confirm your Jasper Jean account",
       text: `Welcome to Jasper Jean. Confirm your email address by opening this link:\n\n${verifyUrl}\n\nThis link expires in 24 hours.`,
-      html: `<p>Welcome to Jasper Jean.</p><p><a href="${verifyUrl}">Confirm your email address</a></p><p>If the button/link does not open, copy and paste this address into your browser:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p><p>This link expires in 24 hours.</p>` });
+      html: `<p>Welcome to Jasper Jean.</p><p><a href="${verifyUrl}">Confirm your email address</a></p><p>If the button/link does not open, copy and paste this address into your browser:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p><p>This link expires in 24 hours.</p>`,
+    });
   } catch (err) {
     await Passenger.findByIdAndDelete(passenger._id);
     return res.status(503).json({ error: err.message });
   }
-  res.status(201).json({ ...safePassenger(passenger), message: "Account created. Check your email to verify it before signing in." });
+  res.status(201).json({
+    ...safePassenger(passenger),
+    message:
+      "Account created. Check your email to verify it before signing in.",
+  });
 });
 
 router.post("/verify-email", async (req, res) => {
+  if (
+    typeof req.body.token !== "string" ||
+    !/^[a-f0-9]{64}$/i.test(req.body.token)
+  )
+    return res.status(400).json({ error: "Invalid verification token." });
   const tokenHash = hashToken(req.body.token || "");
-  const passenger = await Passenger.findOne({ emailVerificationTokenHash: tokenHash,
-    emailVerificationExpires: { $gt: new Date() } });
-  if (!passenger) return res.status(400).json({ error: "This verification link is invalid or expired. Please register again." });
+  const passenger = await Passenger.findOne({
+    emailVerificationTokenHash: tokenHash,
+    emailVerificationExpires: { $gt: new Date() },
+  });
+  if (!passenger)
+    return res.status(400).json({
+      error:
+        "This verification link is invalid or expired. Please register again.",
+    });
   passenger.emailVerified = true;
   passenger.emailVerificationTokenHash = null;
   passenger.emailVerificationExpires = null;
@@ -94,9 +163,12 @@ router.post("/verify-email", async (req, res) => {
   res.json({ ok: true, message: "Email confirmed. You can now sign in." });
 });
 
-router.post("/forgot-password", async (req, res) => {
+router.post("/forgot-password", rateLimit(8), async (req, res) => {
+  if (typeof req.body.email !== "string")
+    return res.status(400).json({ error: "Enter a valid email address." });
   const email = (req.body.email || "").toLowerCase().trim();
-  const genericMessage = "If an account exists for that email, a password reset link has been sent.";
+  const genericMessage =
+    "If an account exists for that email, a password reset link has been sent.";
   const passenger = await Passenger.findOne({ email });
   if (passenger) {
     const resetToken = crypto.randomBytes(32).toString("hex");
@@ -105,9 +177,12 @@ router.post("/forgot-password", async (req, res) => {
     await passenger.save();
     const resetUrl = accountLink("reset", resetToken, email);
     try {
-      await sendAccountEmail({ to: email, subject: "Reset your Jasper Jean password",
+      await sendAccountEmail({
+        to: email,
+        subject: "Reset your Jasper Jean password",
         text: `Reset your password by opening this link: ${resetUrl}`,
-        html: `<p>We received a request to reset your password.</p><p><a href="${resetUrl}">Choose a new password</a></p><p>This link expires in one hour. If you did not request this, you can ignore this email.</p>` });
+        html: `<p>We received a request to reset your password.</p><p><a href="${resetUrl}">Choose a new password</a></p><p>This link expires in one hour. If you did not request this, you can ignore this email.</p>`,
+      });
     } catch (err) {
       passenger.passwordResetTokenHash = null;
       passenger.passwordResetExpires = null;
@@ -120,36 +195,92 @@ router.post("/forgot-password", async (req, res) => {
 
 router.post("/reset-password", async (req, res) => {
   const { token, password } = req.body;
+  if (typeof token !== "string" || !/^[a-f0-9]{64}$/i.test(token))
+    return res.status(400).json({ error: "Invalid reset token." });
   if (typeof password !== "string" || password.length < 8) {
-    return res.status(400).json({ error: "Password must be at least 8 characters long." });
+    return res
+      .status(400)
+      .json({ error: "Password must be at least 8 characters long." });
   }
-  const passenger = await Passenger.findOne({ passwordResetTokenHash: hashToken(token || ""),
-    passwordResetExpires: { $gt: new Date() } });
-  if (!passenger) return res.status(400).json({ error: "This password reset link is invalid or expired. Request a new one." });
-  passenger.passwordHash = hashPassword(password);
+  const passenger = await Passenger.findOne({
+    passwordResetTokenHash: hashToken(token || ""),
+    passwordResetExpires: { $gt: new Date() },
+  });
+  if (!passenger)
+    return res.status(400).json({
+      error:
+        "This password reset link is invalid or expired. Request a new one.",
+    });
+  passenger.passwordHash = await hashPassword(password);
   passenger.passwordResetTokenHash = null;
   passenger.passwordResetExpires = null;
   await passenger.save();
+  await Session.deleteMany({ userId: passenger._id });
   res.json({ ok: true, message: "Password updated. You can now sign in." });
 });
 
 // POST /api/passengers/login
-router.post("/login", async (req, res) => {
+router.post("/login", rateLimit(10), async (req, res) => {
   const { email, password } = req.body;
-  const passenger = await Passenger.findOne({ email: (email || "").toLowerCase().trim() });
-  if (!passenger || passenger.passwordHash !== hashPassword(password)) {
+  if (typeof email !== "string" || typeof password !== "string")
+    return res.status(400).json({ error: "Email and password are required." });
+  const passenger = await Passenger.findOne({
+    email: (email || "").toLowerCase().trim(),
+  });
+  if (!passenger || !(await verifyPassword(password, passenger.passwordHash))) {
     return res.status(401).json({ error: "Invalid email or password" });
   }
-  if (passenger.emailVerified === false) return res.status(403).json({ error: "Please confirm your email before signing in." });
+  if (passenger.emailVerified === false)
+    return res
+      .status(403)
+      .json({ error: "Please confirm your email before signing in." });
+  if (!passenger.passwordHash.startsWith("scrypt:")) {
+    passenger.passwordHash = await hashPassword(password, {
+      allowLegacy: true,
+    });
+    await passenger.save();
+  }
+  await issueSession(res, passenger, "passenger");
   res.json(safePassenger(passenger));
 });
 
-router.patch("/:id", async (req, res) => {
-  const passenger = await Passenger.findByIdAndUpdate(req.params.id, req.body, {
+router.patch("/:id", requireAuth, guardId, async (req, res) => {
+  if (req.auth.role !== "admin" && String(req.auth.userId) !== req.params.id)
+    return res
+      .status(403)
+      .json({ error: "You can only update your own account." });
+  const updates = {};
+  if (
+    typeof req.body.name === "string" &&
+    req.body.name.trim().length >= 2 &&
+    req.body.name.length <= 100
+  )
+    updates.name = req.body.name.trim();
+  if (typeof req.body.phone === "string" && req.body.phone.length <= 30)
+    updates.phone = req.body.phone;
+  const categories = ["regular", "student", "pwd", "senior"];
+  if (categories.includes(req.body.requestedCategory))
+    updates.requestedCategory = req.body.requestedCategory;
+  if (
+    req.auth.role === "admin" &&
+    categories.includes(req.body.category) &&
+    typeof req.body.categoryVerified === "boolean"
+  ) {
+    updates.category = req.body.category;
+    updates.categoryVerified = req.body.categoryVerified;
+  }
+  const passenger = await Passenger.findByIdAndUpdate(req.params.id, updates, {
     new: true,
   }).select("-passwordHash");
   if (!passenger) return res.status(404).json({ error: "Passenger not found" });
-  res.json(passenger);
+  await audit(req, "account.updated", "success", {
+    passengerId: passenger._id,
+    detail:
+      updates.category !== undefined
+        ? "Category eligibility reviewed"
+        : "Account profile updated",
+  });
+  res.json(safePassenger(passenger));
 });
 
 export default router;

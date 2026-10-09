@@ -41,6 +41,7 @@
 #define TINY_GSM_MODEM_SIM7600
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <TinyGsmClient.h>
 #include <ArduinoJson.h>
 #include <stdlib.h>
@@ -50,14 +51,14 @@
 
 // --- WiFi ---
 // Replace these placeholders with your WiFi network name and password.
-const char* WIFI_SSID = "your_wifi_name";
-const char* WIFI_PASSWORD = "your_wifi_password";
+const char* WIFI_SSID = "Kookynet 2.4";
+const char* WIFI_PASSWORD = "Majal@152930";
 
 // --- Backend server ---
 // For WiFi testing, this can be your backend's LAN IP when the backend
 // computer and ESP32 are on the same WiFi; otherwise use a public host.
-const char* SERVER_HOST = "www.teleport-app.online";
-const int   SERVER_PORT = 4000;
+const char* SERVER_HOST = "teleport-3qfa.onrender.com";
+const int   SERVER_PORT = 443;
 const char* API_BASE_PATH = "/api";
 
 // This system represents exactly ONE bus. BUS-001 is its stable,
@@ -65,6 +66,25 @@ const char* API_BASE_PATH = "/api";
 // anymore, since this board talks to the singleton /api/bus/* routes
 // (see backend/routes/bus.js) instead of /api/buses/:id.
 const char* BUS_ID = "BUS-001";
+// Keep per-device credentials outside source control. Copy device_config.example.h.
+#if __has_include("device_config.h")
+#include "device_config.h"
+#else
+#define TELEPORT_DEVICE_KEY ""
+#define TELEPORT_CA_CERT ""
+#endif
+// The GNSS library's `accuracy` value is dimensionless DOP, not meters.
+float latestGpsDop = NAN;
+uint8_t latestFixStatus = 0;
+
+bool configureSecureClient(WiFiClientSecure& client) {
+  if (strlen(TELEPORT_DEVICE_KEY) < 32 || strlen(TELEPORT_CA_CERT) == 0) {
+    Serial.println("Configure the device key and HTTPS CA certificate before sending telemetry.");
+    return false;
+  }
+  client.setCACert(TELEPORT_CA_CERT);
+  return true;
+}
 
 // --- Route stops (must match this bus's `stops` array order in MongoDB) ---
 // SM Dasmariñas (Pala-pala terminal), Cavite -> PITX, Parañaque. Real-world
@@ -308,7 +328,7 @@ void processPendingSeat() {
     portEXIT_CRITICAL(&seatMailboxMux);
     if (revision == 0 || revision == deliveredRevision[index]) continue;
 
-    String body = String("{\"seatId\":") + String(index + 1);
+    String body = String("{\"busId\":\"") + BUS_ID + "\",\"seatId\":" + String(index + 1);
     if (online) {
       body += String(",\"status\":\"") + (occupied ? "booked" : "available") + "\"}";
     } else {
@@ -350,6 +370,9 @@ void checkGpsAndUpdate() {
     SerialMon.println("No GPS fix yet.");
     return;
   }
+
+  latestGpsDop = accuracy;
+  latestFixStatus = fixStatus;
 
   // TinyGSM reports A7670 speed in knots; convert to km/h for the API/UI.
   speedKmh *= 1.852f;
@@ -439,8 +462,11 @@ void sendBusUpdate(float lat, float lon, float speedKmh,
   String timestamp = String(year) + "-" + pad2(month) + "-" + pad2(day) +
                       "T" + pad2(hour) + ":" + pad2(minute) + ":" + pad2(sec) + "Z";
 
+  if (!isfinite(latestGpsDop) || latestGpsDop <= 0) { SerialMon.println("GNSS quality unavailable; retaining prior GPS until it becomes stale."); return; }
   String path = String(API_BASE_PATH) + "/bus/location";
   String body = "{\"busId\":\"" + String(BUS_ID) + "\"" +
+                ",\"dop\":" + String(latestGpsDop, 2) +
+                ",\"fixStatus\":" + String(latestFixStatus) +
                 ",\"latitude\":" + String(lat, 6) +
                 ",\"longitude\":" + String(lon, 6) +
                 ",\"speed\":" + String(speedKmh, 1) +
@@ -457,10 +483,12 @@ void sendBusUpdate(float lat, float lon, float speedKmh,
 // then acknowledge the ticket so later GPS polls do not repeat the alert.
 bool requestDropoffs(String& response) {
   if (WiFi.status() != WL_CONNECTED) return false;
-  WiFiClient client;
+  WiFiClientSecure client;
+  // Authenticate the configured HTTPS server with its trusted CA.
+  if (!configureSecureClient(client)) return false;
   if (!client.connect(SERVER_HOST, SERVER_PORT)) return false;
-  const String path = String(API_BASE_PATH) + "/bus/dropoffs";
-  client.print("GET " + path + " HTTP/1.1\r\nHost: " + SERVER_HOST + "\r\nConnection: close\r\n\r\n");
+  const String path = String(API_BASE_PATH) + "/bus/dropoffs?busId=" + BUS_ID;
+  client.print("GET " + path + " HTTP/1.1\r\nHost: " + SERVER_HOST + "\r\nAuthorization: Bearer " + TELEPORT_DEVICE_KEY + "\r\nConnection: close\r\n\r\n");
   const unsigned long started = millis();
   String raw;
   while ((client.connected() || client.available()) && millis() - started < 8000) {
@@ -476,10 +504,12 @@ bool requestDropoffs(String& response) {
 
 bool acknowledgeDropoff(const String& ticketId) {
   if (WiFi.status() != WL_CONNECTED) return false;
-  WiFiClient client;
+  WiFiClientSecure client;
+  // Use the same trusted CA and device identity for every request.
+  if (!configureSecureClient(client)) return false;
   if (!client.connect(SERVER_HOST, SERVER_PORT)) return false;
-  const String path = String(API_BASE_PATH) + "/bus/dropoffs/" + ticketId + "/alerted";
-  client.print("POST " + path + " HTTP/1.1\r\nHost: " + SERVER_HOST + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+  const String path = String(API_BASE_PATH) + "/bus/dropoffs/" + ticketId + "/alerted?busId=" + String(BUS_ID);
+  client.print("POST " + path + " HTTP/1.1\r\nHost: " + SERVER_HOST + "\r\nAuthorization: Bearer " + TELEPORT_DEVICE_KEY + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
   const unsigned long started = millis();
   String status;
   while ((client.connected() || client.available()) && millis() - started < 5000) {
@@ -529,7 +559,9 @@ bool sendApiRequest(const char* method, const String& path, const String& jsonBo
     return false;
   }
 
-  WiFiClient client;
+  WiFiClientSecure client;
+  // Use the same trusted CA and device identity for every request.
+  if (!configureSecureClient(client)) return false;
   if (!client.connect(SERVER_HOST, SERVER_PORT)) {
     SerialMon.println("Connection to server failed.");
     return false;
@@ -537,6 +569,7 @@ bool sendApiRequest(const char* method, const String& path, const String& jsonBo
 
   client.print(String(method) + " " + path + " HTTP/1.1\r\n");
   client.print(String("Host: ") + SERVER_HOST + "\r\n");
+  client.print(String("Authorization: Bearer ") + TELEPORT_DEVICE_KEY + "\r\n");
   client.print("Content-Type: application/json\r\n");
   client.print("Content-Length: " + String(jsonBody.length()) + "\r\n");
   client.print("Connection: close\r\n\r\n");

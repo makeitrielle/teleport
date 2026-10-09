@@ -1,109 +1,161 @@
 import express from "express";
-import crypto from "crypto";
+import crypto from "node:crypto";
 import Ticket from "../models/Ticket.js";
 import Bus from "../models/Bus.js";
+import Trip from "../models/Trip.js";
 import { farePointForRoute } from "../../shared/fareMatrix.js";
-
+import { requireAuth, requireStaff, guardId, hashToken } from "../security.js";
+import { audit } from "../models/Activity.js";
 const router = express.Router();
-const passengerTypes = new Set(["regular", "student", "pwd", "senior"]);
-const SENSOR_STALE_AFTER_MS = 90000;
-
-function hasFreshAvailableSensor(seat) {
-  const reportedAt = Number(seat.sensorUpdatedAt || 0);
-  const ageMs = Date.now() - reportedAt;
-  return seat.sensor === "ok" && seat.occupancy === "available" &&
-    ageMs >= -60000 && ageMs <= SENSOR_STALE_AFTER_MS;
-}
-
-router.get("/", async (req, res) => {
-  const filter = {};
+router.get("/", requireAuth, async (req, res) => {
+  const filter =
+    req.auth.role === "passenger" ? { passengerId: req.auth.userId } : {};
   if (req.query.busId) filter.busId = req.query.busId;
-  if (req.query.passengerId) filter.passengerId = req.query.passengerId;
-  if (req.query.qrCode) filter.qrCode = req.query.qrCode;
-  if (req.query.qrCode) filter.status = "active";
-  const tickets = await Ticket.find(filter).sort({ createdAt: -1 });
+  const tickets = await Ticket.find(filter).sort({ createdAt: -1 }).limit(300);
   res.json(tickets);
 });
-
-// POST /api/tickets - dispense a new ticket (kiosk flow: pick seat -> pick drop-off)
-router.post("/", async (req, res) => {
-  const { busId, passengerId, seatId, standing = false, passengerType = "regular", from, routeTo, to, distanceKm, dropoffLocation } = req.body;
-  if (!passengerTypes.has(passengerType)) {
-    return res.status(400).json({ error: "Passenger type must be regular, student, pwd, or senior." });
-  }
-  const distance = Number(distanceKm);
-  const lat = Number(dropoffLocation?.lat);
-  const lon = Number(dropoffLocation?.lon);
-  if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) {
-    return res.status(400).json({ error: "A valid drop-off pin is required" });
-  }
-  const normalizedDropoff = { lat, lon };
-  const bus = await Bus.findById(busId);
-  if (!bus) return res.status(404).json({ error: "Bus not found" });
-  const ticketFrom = from || bus.from;
-  const ticketRouteTo = routeTo || bus.to;
-  const farePoint = farePointForRoute(ticketFrom, ticketRouteTo, to);
-  if (!farePoint || !Number.isFinite(distance) || distance !== farePoint.distanceKm) {
-    return res.status(400).json({ error: "Choose a valid drop-off from this route's fare matrix." });
-  }
-  const calculatedFare = passengerType === "regular" ? farePoint.regular : farePoint.discounted;
-
-  if (standing) {
-    const hasAvailableSeat = bus.seats.some((s) => Number(s.id) <= 5 && s.status !== "booked" && hasFreshAvailableSensor(s));
-    if (hasAvailableSeat) return res.status(409).json({ error: "A seat is still available" });
-  } else {
-    const seat = bus.seats.find((s) => s.id === Number(seatId));
-    if (!seat) return res.status(404).json({ error: "Seat not found" });
-    if (Number(seat.id) > 5 || !hasFreshAvailableSensor(seat)) return res.status(409).json({ error: "Seat sensor is offline or the seat is occupied; this seat is unavailable" });
-    if (seat.status === "booked") return res.status(409).json({ error: "Seat already booked" });
-    seat.status = "booked";
-    seat.updatedAt = Date.now();
-    await bus.save();
-  }
-
-  const qrCode = crypto.randomUUID();
-  const printToken = crypto.randomBytes(32).toString("hex");
-  const printTokenHash = crypto.createHash("sha256").update(printToken).digest("hex");
-  const ticket = await Ticket.create({
+router.post("/", requireStaff, async (req, res) => {
+  const {
     busId,
-    passengerId: passengerId || null,
-    passengerType,
     seatId,
-    standing,
-    from: ticketFrom,
-    routeTo: ticketRouteTo,
+    passengerType = "regular",
+    from,
+    routeTo,
     to,
-    dropoffLocation: normalizedDropoff,
-    distanceKm: distance,
-    fare: calculatedFare,
-    qrCode,
-    printTokenHash,
-  });
-
-  const ticketData = ticket.toObject();
-  delete ticketData.printTokenHash;
-  res.status(201).json({ ...ticketData, printToken });
-});
-
-// PATCH /api/tickets/:id - mark used/cancelled
-router.patch("/:id", async (req, res) => {
-  const ticket = await Ticket.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  if (!ticket) return res.status(404).json({ error: "Ticket not found" });
-
-  // free up the seat if cancelled
-  if (req.body.status === "cancelled") {
-    const bus = await Bus.findById(ticket.busId);
-    if (bus) {
-      const seat = bus.seats.find((s) => s.id === ticket.seatId);
-      if (seat) {
-        seat.status = "available";
-        seat.updatedAt = Date.now();
-        await bus.save();
-      }
-    }
+    distanceKm,
+    dropoffLocation,
+  } = req.body;
+  if (req.body.standing)
+    return res
+      .status(400)
+      .json({ error: "Standing reservations are no longer supported." });
+  if (!["regular", "student", "pwd", "senior"].includes(passengerType))
+    return res.status(400).json({ error: "Invalid passenger category." });
+  if (passengerType !== "regular" && req.body.categoryVerified !== true)
+    return res.status(400).json({
+      error:
+        "Staff must verify discount eligibility before issuing this category.",
+    });
+  const bus = await Bus.findById(busId);
+  if (!bus) return res.status(404).json({ error: "Bus not found." });
+  // Keep physical walk-ups from bypassing a published scheduled seat allocation.
+  if (
+    await Trip.exists({
+      busId: bus._id,
+      status: { $in: ["scheduled", "boarding"] },
+      departureAt: { $gt: new Date() },
+    })
+  )
+    return res
+      .status(409)
+      .json({
+        error:
+          "This bus uses published reservations. Reserve through its scheduled trip to avoid conflicting seat allocations.",
+      });
+  const fare = farePointForRoute(from || bus.from, routeTo || bus.to, to);
+  if (!fare || distanceKm !== fare.distanceKm)
+    return res
+      .status(400)
+      .json({ error: "Choose a valid drop-off from the fare matrix." });
+  const lat = dropoffLocation?.lat,
+    lon = dropoffLocation?.lon;
+  if (
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lon) ||
+    lat < -90 ||
+    lat > 90 ||
+    lon < -180 ||
+    lon > 180
+  )
+    return res.status(400).json({ error: "A valid drop-off pin is required." });
+  if (!bus.monitoredSeatIds.includes(Number(seatId)))
+    return res.status(409).json({ error: "Seat sensor is unavailable." });
+  const locked = await Bus.findOneAndUpdate(
+    {
+      _id: busId,
+      seats: {
+        $elemMatch: {
+          id: Number(seatId),
+          status: "available",
+          sensor: "ok",
+          occupancy: "available",
+          sensorUpdatedAt: {
+            $gte: Date.now() - 90000,
+            $lte: Date.now() + 30000,
+          },
+        },
+      },
+    },
+    { $set: { "seats.$.status": "booked" } },
+    { new: true },
+  );
+  if (!locked)
+    return res.status(409).json({
+      error: "Seat is occupied, reserved, or its sensor data is stale.",
+    });
+  let saved = false;
+  try {
+    const printToken = crypto.randomBytes(32).toString("hex");
+    const ticket = await Ticket.create({
+      busId,
+      seatId: Number(seatId),
+      passengerType,
+      categoryVerified: req.body.categoryVerified === true,
+      from: from || bus.from,
+      routeTo: routeTo || bus.to,
+      to,
+      distanceKm,
+      dropoffLocation,
+      fare: passengerType === "regular" ? fare.regular : fare.discounted,
+      qrCode: crypto.randomBytes(32).toString("hex"),
+      bookingReference:
+        "SM-" + crypto.randomBytes(8).toString("hex").toUpperCase(),
+      printTokenHash: hashToken(printToken),
+      expiresAt: new Date(Date.now() + 86400000),
+    });
+    saved = true;
+    await audit(req, "ticket.issued", "success", {
+      ticketId: ticket._id,
+      busId,
+      reference: ticket.bookingReference,
+    });
+    const value = ticket.toObject();
+    delete value.printTokenHash;
+    res.status(201).json({ ...value, printToken });
+  } catch (err) {
+    if (!saved)
+      await Bus.updateOne(
+        { _id: busId, "seats.id": Number(seatId) },
+        { $set: { "seats.$.status": "available" } },
+      );
+    throw err;
   }
-
+});
+router.patch("/:id", requireStaff, guardId, async (req, res) => {
+  if (!["used", "cancelled"].includes(req.body.status))
+    return res
+      .status(400)
+      .json({ error: "Only completion or cancellation is permitted." });
+  const ticket = await Ticket.findOneAndUpdate(
+    { _id: req.params.id, status: "active" },
+    { $set: { status: req.body.status } },
+    { new: true },
+  );
+  if (!ticket)
+    return res
+      .status(409)
+      .json({ error: "Ticket not found or no longer active." });
+  if (!ticket.tripId)
+    await Bus.updateOne(
+      { _id: ticket.busId, "seats.id": ticket.seatId },
+      { $set: { "seats.$.status": "available" } },
+    );
+  await audit(req, "ticket." + req.body.status, "success", {
+    ticketId: ticket._id,
+    busId: ticket.busId,
+    passengerId: ticket.passengerId,
+    reference: ticket.bookingReference,
+  });
   res.json(ticket);
 });
-
 export default router;

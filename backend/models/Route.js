@@ -5,7 +5,7 @@ const RouteSchema = new mongoose.Schema(
     name: { type: String, required: true },
     stops: { type: [String], default: [] },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default mongoose.model("Route", RouteSchema);
