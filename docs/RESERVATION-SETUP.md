@@ -60,7 +60,7 @@ Passenger reservations are attached to the signed-in account. Physical occupancy
 
 Walk-up issuance is blocked on buses with open published reservations, so it cannot bypass scheduled seat inventory. Use the scheduled passenger booking flow for those buses. Completing/cancelling legacy walk-up tickets releases their reservation lock while preserving physical sensor occupancy.
 
-Tickets use an unpredictable 256-bit verification number. The QR is generated locally, without an external QR-image service. Enter the **complete ticket number**, rather than the shorter booking reference, at the kiosk. Possession authorizes a minimal confirmation, with a masked passenger identifier. It cannot access the account or cancel a booking. Authorized boarding/completion consumes the ticket; simply scanning does not consume it or create another reservation. Cancelled, completed and expired tickets are rejected.
+Tickets use an unpredictable 256-bit verification number. The QR is generated locally, without an external QR-image service. The kiosk generates new walk-up tickets; it does not scan or accept existing ticket numbers. Possession authorizes a minimal confirmation, with a masked passenger identifier. It cannot access the account or cancel a booking. Authorized boarding/completion consumes the ticket; simply scanning does not consume it or create another reservation. Cancelled, completed and expired tickets are rejected.
 
 Expiry follows the known scheduled arrival. When arrival is unknown, the current validity policy is scheduled duration plus a two-hour boarding allowance; if duration is unknown, it is 26 hours after departure. This is a ticket validity limit, never a claimed arrival time. Review this policy with operations before deployment. Walk-up tickets expire after 24 hours.
 
@@ -113,7 +113,7 @@ Print Receipt sends authenticated, one-use jobs through the existing WebSocket a
 
 Definite failures allow retry. A disconnected or unconfirmed job is marked uncertain to prevent accidental duplicates. Staff must inspect the physical printer, then resolve the uncertain result from the ticket screen. Already printed receipts require staff authorization to reprint. A receipt does not create a new booking or prove bus proximity. One active print agent is supported; connecting another replaces the previous agent.
 
-Use the kiosk's full-screen control or your Windows browser kiosk deployment configuration. Ordinary browser JavaScript cannot remove operating-system browser chrome. QR scanning requires HTTPS (or localhost), a supported camera and passenger permission. USB scanners that type the complete ticket number into the input are also supported. Kiosk confirmations reset after 90 seconds; Scan Another returns to an empty input and stops camera capture.
+Sign in on `/staff/` on the kiosk computer to activate ticket issuance, then open `/kiosk/`. Touch Screen to Begin requests fullscreen and opens seat selection, passenger type, destination and ticket creation. The kiosk generates a QR receipt for the passenger app without requiring a ticket scan or camera. Finish returns to the welcome screen; kiosk receipts also reset after 90 seconds. For browser chrome control, use your Windows browser kiosk deployment configuration.
 
 ## Verification completed and live checks remaining
 

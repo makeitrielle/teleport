@@ -286,9 +286,7 @@ export default function Portal() {
     /^\/kiosk(?:\/|$)/.test(location.pathname) ||
     new URLSearchParams(location.search).get("mode") === "kiosk";
   const entryPath = kiosk ? "/kiosk/" : staffPage ? "/staff/" : "/";
-  const [kioskStarted, setKioskStarted] = useState(() =>
-    new URLSearchParams(location.search).has("ticket"),
-  );
+  const [kioskStarted, setKioskStarted] = useState(false);
   const [session, setSession] = useState(null),
     [ready, setReady] = useState(false),
     [page, setPage] = useState(kiosk ? "Kiosk" : "Sign in");
@@ -372,7 +370,7 @@ export default function Portal() {
       }
       if (params.get("reset")) setPage("Reset password");
       const reference = params.get("ticket");
-      if (reference) {
+      if (reference && !kiosk) {
         const t = await call("/verify", { reference, source: "qr" });
         setTicket(t);
         history.replaceState(null, "", entryPath);
@@ -1415,130 +1413,20 @@ function Ticket({ ticket, staff, kiosk, run, notify, close, changed }) {
   );
 }
 function Kiosk({ staff, run, open, navigate }) {
-  const [walkup, setWalkup] = useState(staff);
-  const [reference, setReference] = useState(""),
-    [scanning, setScanning] = useState(false),
-    [pending, setPending] = useState(false);
-  const video = useRef(null),
-    controls = useRef(null),
-    scanned = useRef(false);
-  const stop = () => {
-    controls.current?.stop();
-    controls.current = null;
-    setScanning(false);
-  };
-  const verify = (value, source) => {
-    if (pending) return;
-    setPending(true);
-    run(async () => {
-      const t = await call("/verify", { reference: value.trim(), source });
-      stop();
-      open(t);
-    }).finally(() => {
-      setPending(false);
-      scanned.current = false;
-    });
-  };
-  useEffect(() => {
-    if (!scanning) return;
-    let alive = true;
-    scanned.current = false;
-    import("@zxing/browser")
-      .then(({ BrowserQRCodeReader }) =>
-        new BrowserQRCodeReader().decodeFromVideoDevice(
-          undefined,
-          video.current,
-          (result) => {
-            if (result && !scanned.current && alive) {
-              scanned.current = true;
-              let value = result.getText();
-              try {
-                const u = new URL(value);
-                value = u.searchParams.get("ticket") || value;
-              } catch {}
-              verify(value, "qr");
-            }
-          },
-        ),
-      )
-      .then((c) => {
-        if (alive) controls.current = c;
-        else c.stop();
-      })
-      .catch((e) => {
-        if (alive) {
-          setScanning(false);
-          run(async () => {
-            throw new Error(
-              `Camera unavailable: ${e.name}. Allow camera access on HTTPS, or enter the ticket number.`,
-            );
-          });
-        }
-      });
-    return () => {
-      alive = false;
-      controls.current?.stop();
-      controls.current = null;
-    };
-  }, [scanning]);
-  if (walkup && staff)
-    return <Walkup run={run} open={open} close={() => setWalkup(false)} />;
-  return (
-    <section className="original-kiosk kiosk-existing-ticket">
-      <KioskSteps active={0} />
-      <h1>Verify your reservation</h1>
-      <p>
-        Scan your ticket QR code or enter the complete ticket number from your
-        confirmation.
-      </p>
-      <div className="kiosk-actions">
-        <button
-          className="primary"
-          onClick={() => {
-            setReference("");
-            setScanning(true);
-          }}
-          disabled={scanning || pending}
-        >
-          Scan QR Code
+  if (!staff)
+    return (
+      <section className="video-kiosk-flow">
+        <h1>Ticket kiosk</h1>
+        <p>This kiosk needs to be activated by staff before issuing tickets.</p>
+        <a className="primary" href="/staff/">
+          Open staff page
+        </a>
+        <button type="button" onClick={() => navigate("Kiosk")}>
+          Home
         </button>
-        {staff && (
-          <button
-            onClick={() => {
-              stop();
-              setWalkup(true);
-            }}
-          >
-            Issue walk-up ticket
-          </button>
-        )}
-      </div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          verify(reference, "manual");
-        }}
-      >
-        <Field
-          label="Ticket number"
-          autoComplete="off"
-          required
-          value={reference}
-          onChange={(e) => setReference(e.target.value)}
-          placeholder="Enter the complete ticket number"
-        />
-        <button className="primary" disabled={pending}>
-          {pending ? "Verifying…" : "Verify ticket"}
-        </button>
-      </form>
-      {scanning && (
-        <div className="scanner">
-          <video ref={video} playsInline muted aria-label="QR camera preview" />
-          <button onClick={stop}>Close camera</button>
-        </div>
-      )}
-    </section>
-  );
+      </section>
+    );
+  return <Walkup run={run} open={open} close={() => navigate("Kiosk")} />;
 }
 function KioskSteps({ active }) {
   return (
@@ -1803,14 +1691,6 @@ function Walkup({ run, open, close }) {
           </button>
         </div>
       </form>
-      <button
-        className="kiosk-secondary-link"
-        type="button"
-        onClick={close}
-        disabled={pending}
-      >
-        Use an existing reservation
-      </button>
     </section>
   );
 }
@@ -3159,9 +3039,9 @@ function Guide() {
           account.
         </li>
         <li>
-          <strong>Verify at the kiosk.</strong> Select Scan QR Code and allow
-          camera access, or enter the complete ticket number. An attached
-          keyboard scanner can enter the number too.
+          <strong>Create a kiosk ticket.</strong> Staff activates the kiosk from
+          the staff page. Tap Touch Screen to Begin, then choose an available
+          seat, passenger type and destination.
         </li>
         <li>
           <strong>Review your category.</strong> Regular, Student, PWD or Senior
@@ -3170,8 +3050,7 @@ function Guide() {
         </li>
         <li>
           <strong>Review confirmation.</strong> Check bus, seat, destination,
-          departure and current status. Scanning your existing ticket does not
-          make a new reservation.
+          fare and current status before printing your generated ticket.
         </li>
         <li>
           <strong>Print Receipt.</strong> Press the kiosk button once. Keep the
@@ -3179,19 +3058,20 @@ function Guide() {
           outcome is uncertain or you need a reprint.
         </li>
         <li>
-          <strong>Scan another ticket.</strong> Return from the confirmation,
-          then select Scan QR Code again. The previous passenger's details are
+          <strong>Create another ticket.</strong> Press Finish to return to the
+          welcome screen, then begin a new ticket. The previous selections are
           cleared.
         </li>
         <li>
-          <strong>Return home.</strong> Select Kiosk or the SM Pala-Pala label.
-          Staff should sign out after completing their work.
+          <strong>Return home.</strong> Press Home during seat selection or
+          Finish after ticket creation. Staff should sign out from the staff
+          page after completing their work.
         </li>
         <li>
-          <strong>Resolve errors.</strong> Check the full number and internet
-          connection. Cancelled, completed and expired tickets cannot be used.
-          Allow camera access on HTTPS or use manual entry. Stale GPS does not
-          indicate the bus is outside the boundary.
+          <strong>Resolve errors.</strong> Check the internet connection and
+          available sensor readings. Cancelled, completed and expired tickets
+          cannot be printed. Stale GPS does not indicate the bus is outside the
+          boundary.
         </li>
       </ol>
     </section>
