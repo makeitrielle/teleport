@@ -1359,3 +1359,403 @@ summary {
     max-width: 560px;
   }
 }
+
+/* Compact, centered ticket flow from the kiosk video. */
+.kiosk-landing,
+.portal.kiosk > main,
+:root[data-theme="dark"] .portal.kiosk > main {
+  background:
+    radial-gradient(ellipse at 0% 100%, #d58b46 0%, transparent 47%),
+    radial-gradient(ellipse at 100% 0%, #e6c36b 0%, transparent 45%), #f3eee2;
+}
+.kiosk-landing-art {
+  display: none;
+}
+.kiosk-landing h1 {
+  font-style: normal;
+  font-size: clamp(44px, 7vw, 88px);
+  color: #98451f;
+  text-shadow: none;
+}
+.kiosk-landing-copy {
+  padding-bottom: 0;
+}
+.kiosk-landing-underline {
+  width: 64px;
+  height: 4px;
+  margin: 14px 0 18px;
+  transform: none;
+  border-radius: 4px;
+  background: #c96a2b;
+}
+.kiosk-landing-copy > p {
+  font-size: clamp(13px, 1.5vw, 20px);
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  margin-bottom: 32px;
+}
+.kiosk-begin {
+  min-height: 60px;
+  font-size: clamp(15px, 2vw, 22px);
+  padding: 16px 30px;
+  border: 0;
+  border-radius: 12px;
+  gap: 12px;
+  background: #c96a2b;
+  box-shadow: 0 8px 24px rgba(85, 48, 20, 0.12);
+}
+.kiosk-begin svg {
+  width: 28px;
+  height: 28px;
+}
+.kiosk-begin span br {
+  display: none;
+}
+.kiosk-begin span {
+  word-spacing: 2px;
+}
+.portal.kiosk {
+  color-scheme: light;
+  --bg: #f3eee2;
+  --surface: #fffaf2;
+  --text: #252a32;
+  --muted: #626b78;
+  --border: #dfcfb6;
+  --link: #98451f;
+  --soft: #ead2ac;
+  --danger: #c73232;
+  --errorbg: #fce9e5;
+  --success: #16753a;
+  --successbg: #e2f6e9;
+  color: var(--text);
+  max-width: none;
+  display: flex;
+  min-height: 100dvh;
+  box-shadow: none;
+}
+.portal.kiosk > header,
+.portal.kiosk > nav,
+.portal.kiosk > footer {
+  display: none;
+}
+.portal.kiosk > main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: none;
+  min-height: 100dvh;
+  padding: 24px 18px;
+  margin: 0;
+}
+.portal.kiosk > main > .alert,
+.portal.kiosk > main > .loading {
+  width: min(100%, 430px);
+  font-size: 12px;
+}
+.video-kiosk-flow {
+  width: min(100%, 380px);
+  margin: 0 auto;
+  text-align: center;
+}
+.video-kiosk-flow h1,
+.kiosk-existing-ticket h1 {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin: 10px 0 6px;
+}
+.kiosk-trip-label {
+  margin: 0 0 16px;
+  font-size: 11px;
+}
+.kiosk-steps {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin: 0 0 12px;
+}
+.kiosk-steps span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #baa98f;
+}
+.kiosk-steps .done {
+  background: #98451f;
+}
+.video-kiosk-flow .field {
+  text-align: left;
+  margin: 10px 0;
+  gap: 4px;
+}
+.video-kiosk-flow .field > label {
+  font-size: 11px;
+  font-weight: 500;
+}
+.video-kiosk-flow select,
+.video-kiosk-flow input {
+  min-height: 38px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+.kiosk-seat-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  font-size: 9px;
+  margin: 12px 0;
+}
+.kiosk-seat-legend span::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: #1d56b3;
+  display: inline-block;
+  margin-right: 4px;
+}
+.kiosk-seat-legend span:nth-child(2)::before {
+  background: #c73232;
+}
+.kiosk-seat-legend span:nth-child(3)::before {
+  background: #8c9096;
+}
+.kiosk-bus-layout {
+  background: #fffdf8;
+  border: 1px solid #d4c7b3;
+  border-radius: 16px;
+  padding: 12px 24px;
+  max-height: 52vh;
+  overflow: auto;
+  margin: 0 auto;
+  max-width: 310px;
+}
+.kiosk-driver {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  color: #8b694b;
+  font-size: 9px;
+  margin-bottom: 12px;
+}
+.kiosk-seat-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr 24px 1fr 1fr;
+  gap: 5px 8px;
+}
+.portal.kiosk .kiosk-seat-button {
+  padding: 5px 2px;
+  min-height: 36px;
+  font-size: 9px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.kiosk-seat-button.available {
+  color: #1d56b3;
+}
+.kiosk-seat-button.occupied {
+  color: #c73232;
+}
+.kiosk-seat-button.offline {
+  color: #8c9096;
+}
+.portal.kiosk .kiosk-seat-button.selected {
+  color: #98451f;
+  background: #ead2ac;
+  border-color: #c96a2b;
+  opacity: 1;
+}
+.kiosk-no-seats {
+  font-size: 11px;
+  margin: 10px 0;
+}
+.kiosk-category-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 24px 0;
+}
+.portal.kiosk .kiosk-category-grid button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 90px;
+  font-size: 13px;
+  background: #fffdf8;
+}
+.portal.kiosk .kiosk-category-grid .selected {
+  background: #ead2ac;
+  border-color: #c96a2b;
+  color: #98451f;
+}
+.kiosk-eligibility {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  text-align: left;
+  margin: 16px 0;
+}
+.kiosk-eligibility input {
+  width: 18px;
+  height: 18px;
+  min-height: 0 !important;
+  flex-shrink: 0;
+  accent-color: #c96a2b;
+}
+.kiosk-step-actions {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 8px;
+  margin-top: 16px;
+}
+.portal.kiosk .kiosk-step-actions button {
+  min-height: 42px;
+  padding: 10px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+.portal.kiosk .kiosk-secondary-link,
+.portal.kiosk .kiosk-finish-button {
+  min-height: 32px;
+  padding: 7px;
+  font-size: 11px;
+  border: 0;
+  background: transparent;
+}
+.kiosk-secondary-link {
+  margin-top: 12px;
+  color: #98451f;
+}
+.video-kiosk-flow .tracking-map {
+  height: 200px;
+  border-radius: 10px;
+}
+.kiosk-map-hint {
+  font-size: 10px;
+  margin: 8px 0;
+}
+.kiosk-coordinate-entry {
+  font-size: 10px;
+  margin: 8px 0;
+  text-align: left;
+}
+.kiosk-fare-summary {
+  text-align: left;
+  font-size: 11px;
+  margin: 14px 0;
+}
+.kiosk-fare-summary small {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+}
+.kiosk-receipt-flow {
+  max-width: 340px;
+}
+.kiosk-receipt-paper {
+  width: min(100%, 280px);
+  margin: 0 auto 16px;
+  padding: 16px 14px;
+  color: #111;
+  background: #fff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.09);
+  font-family: "Courier New", monospace;
+}
+.kiosk-receipt-paper h2 {
+  font-family: inherit;
+  font-size: 17px;
+  margin: 0 0 4px;
+}
+.receipt-subtitle {
+  font-size: 9px;
+  font-weight: 700;
+}
+.receipt-rule {
+  margin: 7px 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 10px;
+}
+.kiosk-receipt-paper dl {
+  font-size: 10px;
+  gap: 5px;
+  grid-template-columns: 1fr 1.3fr;
+  text-align: left;
+  margin: 8px 0;
+}
+.kiosk-receipt-paper dt {
+  color: #333;
+}
+.kiosk-receipt-paper dd {
+  text-align: right;
+  font-weight: 700;
+}
+.receipt-fare {
+  display: block;
+  font-size: 18px;
+  margin: 10px 0;
+}
+.kiosk-receipt-paper .qr {
+  display: block;
+  width: 150px;
+  height: 150px;
+  margin: 8px auto;
+  border-radius: 0;
+}
+.kiosk-receipt-paper > small {
+  display: block;
+  font-size: 8px;
+  line-height: 1.5;
+  color: #333;
+}
+.portal.kiosk .kiosk-print-button {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px;
+  font-size: 13px;
+  border-radius: 8px;
+}
+.kiosk-finish-button {
+  width: 100%;
+}
+.kiosk-printer-note,
+.kiosk-print-recovery p {
+  font-size: 11px;
+}
+.kiosk-existing-ticket {
+  width: min(100%, 380px);
+  padding: 0;
+  margin: 0 auto;
+}
+.kiosk-existing-ticket > p {
+  font-size: 12px;
+}
+.kiosk-existing-ticket .kiosk-actions {
+  margin: 18px 0;
+}
+.portal.kiosk .kiosk-existing-ticket button {
+  min-height: 44px;
+  font-size: 13px;
+  padding: 10px 16px;
+}
+.portal.kiosk .kiosk-existing-ticket input {
+  min-height: 44px;
+  font-size: 13px;
+}
+.kiosk-print-recovery button {
+  width: 100%;
+  font-size: 12px;
+}

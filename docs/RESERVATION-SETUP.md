@@ -28,6 +28,14 @@ Passenger site: `http://localhost:5173/`. Staff sign-in and console: `http://loc
 
 ## Initial administrator
 
+### Vercel and Render session cookies
+
+The included `vercel.json` files support deploying from either the repository root or `frontend/`. They force the Vercel build to use `VITE_API_URL=/api` and proxy `/api/*` to `https://teleport-3qfa.onrender.com/api/*`. This keeps the browser's session cookie on the passenger website rather than relying on a third-party Render cookie. If the backend hostname changes, update both rewrite destinations.
+
+On Render, set `NODE_ENV=production`, `COOKIE_CROSS_SITE=false`, `APP_URL=https://teleport-app.online`, and `ALLOWED_ORIGINS=https://teleport-app.online,https://www.teleport-app.online`. Include any other actual frontend origin you use, such as your Vercel preview hostname, explicitly. Redeploy the frontend after committing the proxy configuration, then sign in again. Protected requests should use `https://teleport-app.online/api/...`, rather than calling the Render hostname directly. The frontend now checks that login actually persisted a session before opening the dashboard.
+
+`beforeinstallprompt` messages concern the PWA installation banner and do not cause login failures.
+
 Legacy staff accounts retain their credentials and default to Staff. A successful login upgrades a legacy SHA256 password hash to salted scrypt. No account is automatically elevated to Administrator.
 
 When there is no administrator, set these temporary environment variables in the backend terminal, then run the bootstrap command:

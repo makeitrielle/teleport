@@ -92,52 +92,13 @@ function Logo() {
 function KioskLanding({ begin }) {
   return (
     <main className="kiosk-landing" aria-label="TELE-PORT kiosk welcome">
-      <svg
-        className="kiosk-landing-art"
-        viewBox="0 0 1440 900"
-        preserveAspectRatio="none"
-        aria-hidden="true"
-      >
-        <defs>
-          <linearGradient id="kiosk-paper" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#e8eceb" />
-            <stop offset="65%" stopColor="#ffffff" />
-          </linearGradient>
-          <linearGradient id="kiosk-orange" x1="0" y1="0" x2="1" y2="1">
-            <stop stopColor="#ff9c16" />
-            <stop offset="100%" stopColor="#ef5019" />
-          </linearGradient>
-        </defs>
-        <path fill="url(#kiosk-paper)" d="M0 0H1440V900H0Z" />
-        <path
-          fill="url(#kiosk-orange)"
-          d="M0 0H138C-20 365 71 696 434 900H0Z"
-        />
-        <path
-          fill="#f4cd1b"
-          d="M105 0H177C23 372 92 705 485 900H382C69 676-15 358 105 0Z"
-        />
-        <path fill="#ef681c" d="M1440 107C1410 491 1289 737 1075 900H1440Z" />
-        <path
-          fill="#f4cd1b"
-          d="M1440 0C1442 426 1313 765 990 900H1080C1334 732 1446 446 1440 0Z"
-        />
-        <path
-          fill="#ffd72d"
-          d="M1440 185C1390 555 1225 795 870 900H971C1245 778 1387 553 1440 185Z"
-        />
-      </svg>
       <div className="kiosk-landing-copy">
         <h1>TELE-PORT</h1>
         <span className="kiosk-landing-underline" aria-hidden="true" />
         <p>BUS SERVICES</p>
         <button className="kiosk-begin" onClick={begin}>
           <TicketIcon aria-hidden="true" />
-          <span>
-            TOUCH SCREEN
-            <br />
-            TO BEGIN
-          </span>
+          <span>TOUCH SCREEN TO BEGIN</span>
         </button>
       </div>
     </main>
@@ -235,7 +196,8 @@ function MapClick({ setPoint }) {
   });
   return null;
 }
-function Dropoff({ point, setPoint }) {
+function Dropoff({ point, setPoint, compact = false }) {
+  const CoordinateFields = compact ? "details" : "div";
   const validPoint =
     Number.isFinite(point?.lat) &&
     Number.isFinite(point?.lon) &&
@@ -243,9 +205,10 @@ function Dropoff({ point, setPoint }) {
     Math.abs(point.lon) <= 180;
   return (
     <div>
-      <p>
-        Choose your actual drop-off pin for the onboard destination alert. This
-        pin is separate from the bus GPS location.
+      <p className={compact ? "kiosk-map-hint" : undefined}>
+        {compact
+          ? "Tap the map to set your exact drop-off location."
+          : "Choose your actual drop-off pin for the onboard destination alert. This pin is separate from the bus GPS location."}
       </p>
       <MapContainer
         center={validPoint ? [point.lat, point.lon] : [14.3, 120.95]}
@@ -261,7 +224,10 @@ function Dropoff({ point, setPoint }) {
           <Marker position={[point.lat, point.lon]} icon={markerIcon} />
         )}
       </MapContainer>
-      <div className="filters">
+      <CoordinateFields
+        className={compact ? "kiosk-coordinate-entry" : "filters"}
+      >
+        {compact && <summary>Enter coordinates</summary>}
         <Field
           label="Drop-off latitude"
           type="number"
@@ -290,7 +256,7 @@ function Dropoff({ point, setPoint }) {
             })
           }
         />
-      </div>
+      </CoordinateFields>
     </div>
   );
 }
@@ -356,6 +322,12 @@ export default function Portal() {
     try {
       return await fn();
     } catch (e) {
+      if (e.status === 401 && session) {
+        setSession(null);
+        setTicket(null);
+        setTrip(null);
+        setPage(kiosk ? "Kiosk" : "Sign in");
+      }
       setError(
         e.name === "TimeoutError"
           ? "The server took too long. Check your connection and try again."
@@ -436,7 +408,17 @@ export default function Portal() {
       api
         .getNotifications()
         .then((n) => live && setNotifications(n))
-        .catch(() => {});
+        .catch((e) => {
+          if (live && e.status === 401) {
+            setSession(null);
+            setTicket(null);
+            setTrip(null);
+            setPage(kiosk ? "Kiosk" : "Sign in");
+            setError(
+              "Your session has expired or was not saved. Please sign in again.",
+            );
+          }
+        });
     poll();
     const timer = setInterval(poll, 15000);
     return () => {
@@ -638,6 +620,10 @@ export default function Portal() {
                   setError("");
                   setNotice("");
                   changed();
+                  if (kiosk) {
+                    setPage("Kiosk");
+                    setKioskStarted(false);
+                  }
                 }}
                 changed={changed}
               />
@@ -728,6 +714,11 @@ export default function Portal() {
                     notify={setNotice}
                     loggedIn={async () => {
                       const s = await loadSession();
+                      if (!s.user) {
+                        throw new Error(
+                          "Your browser did not save the sign-in session. The website must use its /api proxy; please try again after redeployment.",
+                        );
+                      }
                       navigate(
                         s.role === "passenger" ? "Dashboard" : "Management",
                       );
@@ -1123,6 +1114,7 @@ function Bookings({ session, refresh, run, open, summary = false }) {
 }
 function Ticket({ ticket, staff, kiosk, run, notify, close, changed }) {
   const [pending, setPending] = useState(false),
+    [receiptSent, setReceiptSent] = useState(false),
     [printer, setPrinter] = useState(null),
     [status, setStatus] = useState(ticket.status);
   useEffect(() => {
@@ -1136,6 +1128,134 @@ function Ticket({ ticket, staff, kiosk, run, notify, close, changed }) {
     setPending(true);
     run(fn).finally(() => setPending(false));
   };
+  if (kiosk) {
+    return (
+      <section className="video-kiosk-flow kiosk-receipt-flow">
+        <KioskSteps active={3} />
+        <h1>Ticket ready</h1>
+        <p className="kiosk-trip-label">
+          Scan the QR code with the passenger app.
+        </p>
+        <div className="kiosk-receipt-paper">
+          <h2>TELE-PORT</h2>
+          <div className="receipt-subtitle">
+            BUS SERVICES · PASSENGER TICKET
+          </div>
+          <div className="receipt-rule">***************************</div>
+          <dl>
+            <dt>Route:</dt>
+            <dd>
+              {ticket.from} - {ticket.routeTo || ticket.to}
+            </dd>
+            <dt>Bus number:</dt>
+            <dd>{ticket.busId}</dd>
+            <dt>Date:</dt>
+            <dd>{date(ticket.createdAt || ticket.confirmedAt)}</dd>
+            <dt>Passenger type:</dt>
+            <dd>{categories[ticket.passengerType] || categories.regular}</dd>
+            <dt>Ride:</dt>
+            <dd>SEAT {ticket.seatId}</dd>
+            <dt>From:</dt>
+            <dd>{ticket.from}</dd>
+            <dt>To:</dt>
+            <dd>{ticket.to}</dd>
+            <dt>Ticket no.:</dt>
+            <dd>{ticket.bookingReference}</dd>
+          </dl>
+          <div className="receipt-rule">***************************</div>
+          <strong className="receipt-fare">
+            Php {Number(ticket.fare).toFixed(2)}
+          </strong>
+          <QR value={ticket.qrCode} />
+          <small>
+            SCAN QR FOR YOUR TRIP DETAILS
+            <br />
+            POWERED BY TELE-PORT
+          </small>
+        </div>
+        {status !== "confirmed" && (
+          <p className="error">
+            This ticket is {status} and cannot be printed.
+          </p>
+        )}
+        <button
+          className="primary kiosk-print-button"
+          disabled={
+            pending ||
+            receiptSent ||
+            ticket.printState === "printed" ||
+            status !== "confirmed" ||
+            ticket.printState === "uncertain"
+          }
+          onClick={() =>
+            action(async () => {
+              const auth = await call("/receipt-authorization", {
+                reference: ticket.qrCode,
+              });
+              await api.printTicket(auth.ticketId, auth.printToken);
+              setReceiptSent(true);
+              notify("Ticket sent to printer.");
+              changed();
+            })
+          }
+        >
+          {pending
+            ? "Sending to printer…"
+            : receiptSent || ticket.printState === "printed"
+              ? "Ticket sent to printer"
+              : "Print ticket"}
+        </button>
+        {printer && !printer.agentConnected && (
+          <p className="kiosk-printer-note">
+            Printer is unavailable. Please ask staff for help.
+          </p>
+        )}
+        {staff && ticket.printState === "uncertain" && (
+          <div className="kiosk-print-recovery">
+            <p>Please check the printer before retrying.</p>
+            <button
+              disabled={pending}
+              onClick={() =>
+                action(async () => {
+                  await call(`/reservations/${ticket.id}/resolve-print`, {
+                    outcome: "printed",
+                  });
+                  close();
+                })
+              }
+            >
+              Receipt physically printed
+            </button>
+            <button
+              disabled={pending}
+              onClick={() => {
+                if (
+                  confirm(
+                    "Confirm no receipt was printed before enabling a retry.",
+                  )
+                )
+                  action(async () => {
+                    await call(`/reservations/${ticket.id}/resolve-print`, {
+                      outcome: "failed",
+                    });
+                    close();
+                  });
+              }}
+            >
+              No receipt printed: enable retry
+            </button>
+          </div>
+        )}
+        <button
+          className="kiosk-finish-button"
+          disabled={pending}
+          onClick={close}
+        >
+          Finish
+        </button>
+      </section>
+    );
+  }
   return (
     <section className="confirmation">
       <button onClick={close}>
@@ -1295,7 +1415,7 @@ function Ticket({ ticket, staff, kiosk, run, notify, close, changed }) {
   );
 }
 function Kiosk({ staff, run, open, navigate }) {
-  const [walkup, setWalkup] = useState(false);
+  const [walkup, setWalkup] = useState(staff);
   const [reference, setReference] = useState(""),
     [scanning, setScanning] = useState(false),
     [pending, setPending] = useState(false);
@@ -1364,10 +1484,8 @@ function Kiosk({ staff, run, open, navigate }) {
   if (walkup && staff)
     return <Walkup run={run} open={open} close={() => setWalkup(false)} />;
   return (
-    <section className="original-kiosk">
-      <div className="kiosk-wordmark">TELE-PORT</div>
-      <div className="kiosk-services">BUS SERVICES</div>
-      <p className="eyebrow">Welcome to SM Pala-Pala</p>
+    <section className="original-kiosk kiosk-existing-ticket">
+      <KioskSteps active={0} />
       <h1>Verify your reservation</h1>
       <p>
         Scan your ticket QR code or enter the complete ticket number from your
@@ -1384,10 +1502,6 @@ function Kiosk({ staff, run, open, navigate }) {
         >
           Scan QR Code
         </button>
-        <button onClick={() => navigate("Trip Schedule")}>
-          View trip schedules
-        </button>
-        <button onClick={() => navigate("User Guide")}>User Guide</button>
         {staff && (
           <button
             onClick={() => {
@@ -1426,6 +1540,19 @@ function Kiosk({ staff, run, open, navigate }) {
     </section>
   );
 }
+function KioskSteps({ active }) {
+  return (
+    <div className="kiosk-steps" aria-label={`Step ${active + 1} of 4`}>
+      {[0, 1, 2, 3].map((i) => (
+        <span
+          key={i}
+          className={i <= active ? "done" : ""}
+          aria-current={i === active ? "step" : undefined}
+        />
+      ))}
+    </div>
+  );
+}
 function Walkup({ run, open, close }) {
   const [buses, setBuses] = useState([]),
     [busId, setBusId] = useState(""),
@@ -1434,17 +1561,25 @@ function Walkup({ run, open, close }) {
     [category, setCategory] = useState("regular"),
     [verified, setVerified] = useState(false),
     [point, setPoint] = useState(null),
-    [pending, setPending] = useState(false);
+    [pending, setPending] = useState(false),
+    [step, setStep] = useState(0);
   useEffect(() => {
     let live = true;
     const poll = () =>
       api
         .getBuses()
-        .then((b) => live && setBuses(b))
-        .catch((e) =>
-          run(async () => {
-            throw e;
-          }),
+        .then((b) => {
+          if (live) {
+            setBuses(b);
+            setBusId((id) => id || b[0]?._id || "");
+          }
+        })
+        .catch(
+          (e) =>
+            live &&
+            run(async () => {
+              throw e;
+            }),
         );
     poll();
     const timer = setInterval(poll, 10000);
@@ -1458,26 +1593,43 @@ function Walkup({ run, open, close }) {
       ? FARE_MATRIX[fareDirectionForRoute(bus.from, bus.to)] || []
       : [],
     fare = fares.find((p) => p.landmark === destination),
-    available =
-      bus?.seats.filter(
-        (s) =>
-          bus.monitoredSeatIds.includes(s.id) &&
-          s.status === "available" &&
-          s.sensor === "ok" &&
-          s.occupancy === "available" &&
-          Date.now() - s.sensorUpdatedAt < 90000,
-      ) || [];
+    available = (bus?.seats || []).filter(
+      (s) =>
+        bus.monitoredSeatIds.includes(s.id) &&
+        liveSeat(s) &&
+        s.status === "available" &&
+        s.occupancy === "available",
+    ),
+    seatValid = available.some((s) => s.id === Number(seat)),
+    pointValid =
+      Number.isFinite(point?.lat) &&
+      Number.isFinite(point?.lon) &&
+      Math.abs(point.lat) <= 90 &&
+      Math.abs(point.lon) <= 180;
   return (
-    <section>
-      <button onClick={close}>← Kiosk home</button>
-      <h1>Issue a walk-up ticket</h1>
-      <p>
-        Only seats with current, available sensor readings can be issued. Use
-        published schedules for advance bookings.
+    <section className="video-kiosk-flow">
+      <KioskSteps active={step} />
+      <h1>
+        {
+          ["Tap your seat", "Passenger type", "Where are you getting off?"][
+            step
+          ]
+        }
+      </h1>
+      <p className="kiosk-trip-label">
+        {bus
+          ? `${bus.name || bus.busId} · ${bus.from} → ${bus.to}`
+          : "Loading bus…"}
+        {step > 0 && seat ? ` · Seat ${seat}` : ""}
       </p>
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          if (step < 2) {
+            setStep(step + 1);
+            return;
+          }
+          if (!seatValid || !fare || !pointValid) return;
           setPending(true);
           run(async () => {
             const t = await api.createTicket({
@@ -1497,90 +1649,168 @@ function Walkup({ run, open, close }) {
           }).finally(() => setPending(false));
         }}
       >
-        <Field label="Bus">
-          <select
-            value={busId}
-            required
-            onChange={(e) => {
-              setBusId(e.target.value);
-              setSeat("");
-              setDestination("");
-            }}
-          >
-            <option value="">Choose bus</option>
-            {buses.map((b) => (
-              <option key={b._id} value={b._id}>
-                {b.busId} · {b.from} → {b.to}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Available sensor seat">
-          <select
-            value={seat}
-            required
-            onChange={(e) => setSeat(e.target.value)}
-          >
-            <option value="">Choose seat</option>
-            {available.map((s) => (
-              <option key={s.id} value={s.id}>
-                Seat {s.id}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Destination">
-          <select
-            value={destination}
-            required
-            onChange={(e) => setDestination(e.target.value)}
-          >
-            <option value="">Choose destination</option>
-            {fares.map((f) => (
-              <option key={f.landmark}>{f.landmark}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Passenger category">
-          <select
-            value={category}
-            onChange={(e) => {
-              setCategory(e.target.value);
-              setVerified(false);
-            }}
-          >
-            {Object.entries(categories).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </Field>
-        {category !== "regular" && (
-          <label>
-            <input
-              type="checkbox"
-              checked={verified}
-              onChange={(e) => setVerified(e.target.checked)}
-            />{" "}
-            I checked the passenger's eligibility document.
-          </label>
+        {step === 0 && (
+          <>
+            {buses.length > 1 && (
+              <Field label="Bus">
+                <select
+                  value={busId}
+                  required
+                  onChange={(e) => {
+                    setBusId(e.target.value);
+                    setSeat("");
+                    setDestination("");
+                    setPoint(null);
+                  }}
+                >
+                  {buses.map((b) => (
+                    <option value={b._id} key={b._id}>
+                      {b.name || b.busId} · {b.from} → {b.to}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
+            <div className="kiosk-seat-legend">
+              <span>Available</span>
+              <span>Occupied / reserved</span>
+              <span>Sensor unavailable</span>
+            </div>
+            <div className="kiosk-bus-layout">
+              <div className="kiosk-driver">
+                <Bus size={18} /> FRONT
+              </div>
+              <div className="kiosk-seat-layout">
+                {(bus?.seats || []).map((s, i) => {
+                  const ok = available.some((a) => a.id === s.id);
+                  return (
+                    <button
+                      type="button"
+                      key={s.id}
+                      style={{ gridColumn: (i % 4) + (i % 4 >= 2 ? 2 : 1) }}
+                      className={`kiosk-seat-button ${!liveSeat(s) ? "offline" : !ok ? "occupied" : "available"} ${Number(seat) === s.id ? "selected" : ""}`}
+                      disabled={!ok || pending}
+                      aria-pressed={Number(seat) === s.id}
+                      aria-label={`Seat ${s.id}${!ok ? (!liveSeat(s) ? ", sensor unavailable" : ", unavailable") : ""}`}
+                      onClick={() => setSeat(String(s.id))}
+                    >
+                      <Armchair size={20} />
+                      <span>{s.id}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {bus && !available.length && (
+              <p className="kiosk-no-seats">
+                No seats with a fresh available sensor reading. Please ask staff
+                for help.
+              </p>
+            )}
+          </>
         )}
-        <Dropoff point={point} setPoint={setPoint} />
-        {fare && (
-          <p>
-            Fare: ₱{category === "regular" ? fare.regular : fare.discounted}
-          </p>
+        {step === 1 && (
+          <>
+            <div className="kiosk-category-grid">
+              {Object.entries(categories).map(([key, label]) => (
+                <button
+                  type="button"
+                  key={key}
+                  aria-pressed={category === key}
+                  className={category === key ? "selected" : ""}
+                  onClick={() => {
+                    setCategory(key);
+                    setVerified(false);
+                  }}
+                >
+                  <User size={22} />
+                  {label}
+                </button>
+              ))}
+            </div>
+            {category !== "regular" && (
+              <label className="kiosk-eligibility">
+                <input
+                  type="checkbox"
+                  checked={verified}
+                  onChange={(e) => setVerified(e.target.checked)}
+                />
+                Staff has checked the passenger's eligibility document.
+              </label>
+            )}
+          </>
         )}
-        <button
-          className="primary"
-          disabled={
-            pending || !fare || !point || (category !== "regular" && !verified)
-          }
-        >
-          {pending ? "Saving ticket…" : "Create ticket"}
-        </button>
+        {step === 2 && (
+          <>
+            <Field
+              label={`Choose your drop-off point along ${bus?.from || ""} → ${bus?.to || ""}`}
+            >
+              <select
+                value={destination}
+                required
+                onChange={(e) => setDestination(e.target.value)}
+              >
+                <option value="">Select a fare point…</option>
+                {fares.map((f) => (
+                  <option key={f.landmark} value={f.landmark}>
+                    {f.landmark}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Dropoff point={point} setPoint={setPoint} compact />
+            {fare && (
+              <div className="kiosk-fare-summary">
+                <strong>{destination}</strong>
+                <small>
+                  {fare.distanceKm} km · {categories[category]} · Fare: ₱
+                  {Number(
+                    category === "regular" ? fare.regular : fare.discounted,
+                  ).toFixed(2)}
+                </small>
+              </div>
+            )}
+            {!seatValid && (
+              <p className="error">
+                This seat is no longer available. Go back and select an
+                available seat.
+              </p>
+            )}
+          </>
+        )}
+        <div className="kiosk-step-actions">
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => (step ? setStep(step - 1) : close())}
+          >
+            {step ? "Back" : "Home"}
+          </button>
+          <button
+            className="primary"
+            disabled={
+              pending ||
+              !seatValid ||
+              (step > 0 && category !== "regular" && !verified) ||
+              (step === 2 && (!fare || !pointValid))
+            }
+          >
+            {pending
+              ? "Creating ticket…"
+              : step === 2
+                ? "Create ticket"
+                : "Continue"}
+          </button>
+        </div>
       </form>
+      <button
+        className="kiosk-secondary-link"
+        type="button"
+        onClick={close}
+        disabled={pending}
+      >
+        Use an existing reservation
+      </button>
     </section>
   );
 }
@@ -2661,8 +2891,18 @@ function Management({ admin, run, notify, refresh, changed }) {
                 <form onSubmit={submit((f) => api.updateBus(b._id, f))}>
                   <div className="filters">
                     <Field name="name" label="Name" defaultValue={b.name} />
-                    <Field name="from" label="Origin" defaultValue={b.from} required/>
-                    <Field name="to" label="Route destination" defaultValue={b.to} required/>
+                    <Field
+                      name="from"
+                      label="Origin"
+                      defaultValue={b.from}
+                      required
+                    />
+                    <Field
+                      name="to"
+                      label="Route destination"
+                      defaultValue={b.to}
+                      required
+                    />
                     <Field
                       name="driver"
                       label="Driver"

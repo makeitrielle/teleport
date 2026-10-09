@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "VITE_API_URL=/api npm run build",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://teleport-3qfa.onrender.com/api/:path*"
+    }
+  ]
+}
