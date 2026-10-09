@@ -24,7 +24,7 @@ npm run dev:api
 npm run dev:web
 ```
 
-Passenger site: `http://localhost:5173/`. Kiosk: `http://localhost:5173/?mode=kiosk`. Production uses HTTPS. Prefer a reverse proxy for `/api` on the same website origin. If deploying the API separately, set `VITE_API_URL` before building and configure allowed origins, credentialed cookies and `COOKIE_CROSS_SITE=true`. Browsers may block cross-site cookies; a same-origin proxy avoids this issue.
+Passenger site: `http://localhost:5173/`. Staff sign-in and console: `http://localhost:5173/staff/`. Passenger kiosk: `http://localhost:5173/kiosk/`. The old `/?mode=kiosk` URL also works. The production build includes separate HTML entry pages for all three, so deploy the complete `frontend/dist/` folder. Production uses HTTPS. Prefer a reverse proxy for `/api` on the same website origin. If deploying the API separately, set `VITE_API_URL` before building and configure allowed origins, credentialed cookies and `COOKIE_CROSS_SITE=true`. Browsers may block cross-site cookies; a same-origin proxy avoids this issue.
 
 ## Initial administrator
 

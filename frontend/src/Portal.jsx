@@ -89,6 +89,60 @@ function Logo() {
     </span>
   );
 }
+function KioskLanding({ begin }) {
+  return (
+    <main className="kiosk-landing" aria-label="TELE-PORT kiosk welcome">
+      <svg
+        className="kiosk-landing-art"
+        viewBox="0 0 1440 900"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient id="kiosk-paper" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#e8eceb" />
+            <stop offset="65%" stopColor="#ffffff" />
+          </linearGradient>
+          <linearGradient id="kiosk-orange" x1="0" y1="0" x2="1" y2="1">
+            <stop stopColor="#ff9c16" />
+            <stop offset="100%" stopColor="#ef5019" />
+          </linearGradient>
+        </defs>
+        <path fill="url(#kiosk-paper)" d="M0 0H1440V900H0Z" />
+        <path
+          fill="url(#kiosk-orange)"
+          d="M0 0H138C-20 365 71 696 434 900H0Z"
+        />
+        <path
+          fill="#f4cd1b"
+          d="M105 0H177C23 372 92 705 485 900H382C69 676-15 358 105 0Z"
+        />
+        <path fill="#ef681c" d="M1440 107C1410 491 1289 737 1075 900H1440Z" />
+        <path
+          fill="#f4cd1b"
+          d="M1440 0C1442 426 1313 765 990 900H1080C1334 732 1446 446 1440 0Z"
+        />
+        <path
+          fill="#ffd72d"
+          d="M1440 185C1390 555 1225 795 870 900H971C1245 778 1387 553 1440 185Z"
+        />
+      </svg>
+      <div className="kiosk-landing-copy">
+        <h1>TELE-PORT</h1>
+        <span className="kiosk-landing-underline" aria-hidden="true" />
+        <p>BUS SERVICES</p>
+        <button className="kiosk-begin" onClick={begin}>
+          <TicketIcon aria-hidden="true" />
+          <span>
+            TOUCH SCREEN
+            <br />
+            TO BEGIN
+          </span>
+        </button>
+      </div>
+    </main>
+  );
+}
 function NavigationIcon({ page }) {
   const Icon =
     {
@@ -261,7 +315,14 @@ function QR({ value }) {
 }
 
 export default function Portal() {
-  const kiosk = new URLSearchParams(location.search).get("mode") === "kiosk";
+  const staffPage = /^\/staff(?:\/|$)/.test(location.pathname);
+  const kiosk =
+    /^\/kiosk(?:\/|$)/.test(location.pathname) ||
+    new URLSearchParams(location.search).get("mode") === "kiosk";
+  const entryPath = kiosk ? "/kiosk/" : staffPage ? "/staff/" : "/";
+  const [kioskStarted, setKioskStarted] = useState(() =>
+    new URLSearchParams(location.search).has("ticket"),
+  );
   const [session, setSession] = useState(null),
     [ready, setReady] = useState(false),
     [page, setPage] = useState(kiosk ? "Kiosk" : "Sign in");
@@ -280,7 +341,14 @@ export default function Portal() {
     [online, setOnline] = useState(navigator.onLine);
   const staff = ["staff", "admin"].includes(session?.role),
     admin = session?.role === "admin";
-  const passengerUI = !kiosk && !staff;
+  const passengerUI = !kiosk && !staffPage;
+  useEffect(() => {
+    document.title = kiosk
+      ? "TELE-PORT · Kiosk"
+      : staffPage
+        ? "TELE-PORT · Staff"
+        : "TELE-PORT";
+  }, [kiosk, staffPage]);
   const run = async (fn) => {
     setError("");
     setNotice("");
@@ -301,7 +369,13 @@ export default function Portal() {
   const changed = () => setRefresh((v) => v + 1);
   const loadSession = async () => {
     const s = await request("/session");
-    setSession(s.user ? s : null);
+    const matchesPage =
+      s.user &&
+      (kiosk ||
+        (staffPage
+          ? ["staff", "admin"].includes(s.role)
+          : s.role === "passenger"));
+    setSession(matchesPage ? s : null);
     return s;
   };
   useEffect(() => {
@@ -309,8 +383,14 @@ export default function Portal() {
     bootstrapped.current = true;
     run(async () => {
       const current = await loadSession();
-      if (!kiosk && current.user)
-        setPage(current.role === "passenger" ? "Dashboard" : "Management");
+      if (
+        !kiosk &&
+        current.user &&
+        (staffPage
+          ? ["staff", "admin"].includes(current.role)
+          : current.role === "passenger")
+      )
+        setPage(staffPage ? "Management" : "Dashboard");
       const params = new URLSearchParams(location.search);
       const token = params.get("verify");
       if (token) {
@@ -323,7 +403,7 @@ export default function Portal() {
       if (reference) {
         const t = await call("/verify", { reference, source: "qr" });
         setTicket(t);
-        history.replaceState(null, "", kiosk ? "/?mode=kiosk" : "/");
+        history.replaceState(null, "", entryPath);
       }
     }).finally(() => setReady(true));
   }, []);
@@ -365,17 +445,22 @@ export default function Portal() {
     };
   }, [session, refresh]);
   const navigate = (p) => {
+    if (staffPage && p === "Kiosk") {
+      location.assign("/kiosk/");
+      return;
+    }
     setPage(p);
     setTicket(null);
     setTrip(null);
     setError("");
     setNotice("");
+    if (kiosk && p === "Kiosk") setKioskStarted(false);
   };
   const logout = () =>
     run(async () => {
       await call("/logout", {});
       setSession(null);
-      navigate(kiosk ? "Kiosk" : staff ? "Trip Schedule" : "Sign in");
+      navigate(kiosk ? "Kiosk" : "Sign in");
     });
   const passengerNav = [
     ["Dashboard", "Home"],
@@ -396,6 +481,8 @@ export default function Portal() {
     if (!ticket || !(kiosk || page === "Kiosk")) return;
     const timer = setTimeout(() => {
       setTicket(null);
+      setPage("Kiosk");
+      setKioskStarted(false);
       setNotice("Kiosk returned home after inactivity.");
     }, 90000);
     return () => clearTimeout(timer);
@@ -416,9 +503,25 @@ export default function Portal() {
     "Settings",
     "User Guide",
   ];
+  if (kiosk && !kioskStarted) {
+    return (
+      <KioskLanding
+        begin={() => {
+          setKioskStarted(true);
+          setPage("Kiosk");
+          if (
+            !document.fullscreenElement &&
+            document.documentElement.requestFullscreen
+          ) {
+            document.documentElement.requestFullscreen().catch(() => {});
+          }
+        }}
+      />
+    );
+  }
   return (
     <div
-      className={`${kiosk ? "portal kiosk" : "portal"}${staff ? " staff-portal" : ""}${passengerUI ? " passenger-app" : ""}${page === "Sign in" || page === "Reset password" ? " auth-page" : ""}`}
+      className={`${kiosk ? "portal kiosk" : "portal"}${staffPage ? " staff-portal" : ""}${passengerUI ? " passenger-app" : ""}${page === "Sign in" || page === "Reset password" ? " auth-page" : ""}`}
     >
       <header>
         {passengerUI &&
@@ -441,7 +544,7 @@ export default function Portal() {
             <strong>{page === "Bus Tracking" ? "Live map" : page}</strong>
           </div>
         ) : (
-          <a className="brand" href={kiosk ? "/?mode=kiosk" : "/"}>
+          <a className="brand" href={entryPath}>
             <Logo />
           </a>
         )}
@@ -458,13 +561,16 @@ export default function Portal() {
             <button disabled={busy} onClick={logout}>
               Sign out
             </button>
+          ) : kiosk ? (
+            <a href="/staff/">Staff console</a>
           ) : (
             <button onClick={() => navigate("Sign in")}>Sign in</button>
           )}
+          {kiosk && session && <a href="/staff/">Staff console</a>}
         </div>
       </header>
       <nav aria-label="Main navigation">
-        <a className="sidebar-brand" href={kiosk ? "/?mode=kiosk" : "/"}>
+        <a className="sidebar-brand" href={entryPath}>
           <Logo />
         </a>
         {passengerUI
@@ -481,21 +587,7 @@ export default function Portal() {
               </button>
             ))
           : (kiosk
-              ? [
-                  "Kiosk",
-                  "Trip Schedule",
-                  ...(staff
-                    ? [
-                        "Dashboard",
-                        "My Bookings",
-                        "Bus Tracking",
-                        "Activity History",
-                        "Management",
-                      ]
-                    : []),
-                  "Settings",
-                  "User Guide",
-                ]
+              ? ["Kiosk", "Trip Schedule", "Settings", "User Guide"]
               : nav
             ).map((p) => (
               <button
@@ -630,6 +722,7 @@ export default function Portal() {
                 )}
                 {(page === "Sign in" || page === "Reset password") && (
                   <Auth
+                    staffOnly={staffPage}
                     reset={page === "Reset password"}
                     run={run}
                     notify={setNotice}
@@ -740,11 +833,13 @@ export default function Portal() {
                         Toggle full screen
                       </button>
                     )}
-                    <a href={kiosk ? "/" : "/?mode=kiosk"}>
-                      {kiosk
-                        ? "Open passenger application"
-                        : "Open kiosk application"}
-                    </a>
+                    {!passengerUI && (
+                      <div className="actions">
+                        <a href="/">Open passenger application</a>
+                        <a href="/kiosk/">Open kiosk application</a>
+                        {kiosk && <a href="/staff/">Open staff console</a>}
+                      </div>
+                    )}
                   </section>
                 )}
                 {page === "User Guide" && <Guide />}
@@ -1489,15 +1584,21 @@ function Walkup({ run, open, close }) {
     </section>
   );
 }
-function Auth({ run, notify, loggedIn, reset }) {
-  const [mode, setMode] = useState(reset ? "reset" : "login"),
+function Auth({ run, notify, loggedIn, reset, staffOnly = false }) {
+  const [mode, setMode] = useState(
+      staffOnly ? "staff" : reset ? "reset" : "login",
+    ),
     [pending, setPending] = useState(false);
   return (
     <div className="authLayout">
       <section className="authIntro">
         <div className="authBrand">TELE-PORT</div>
         <h1>
-          {mode === "signup" ? (
+          {staffOnly ? (
+            <>
+              Staff <span>console</span>
+            </>
+          ) : mode === "signup" ? (
             <>
               Create your <span>account</span>
             </>
@@ -1512,11 +1613,13 @@ function Auth({ run, notify, loggedIn, reset }) {
           )}
         </h1>
         <p>
-          {mode === "signup"
-            ? "Create an account to follow your bus, check seats, and keep your trip details together."
-            : mode === "forgot" || mode === "reset"
-              ? "Reset your password and get back to your trip."
-              : "Sign in to your account and make your Jasper Jean trip easier."}
+          {staffOnly
+            ? "Sign in with your staff account to manage buses, schedules, and passenger tickets."
+            : mode === "signup"
+              ? "Create an account to follow your bus, check seats, and keep your trip details together."
+              : mode === "forgot" || mode === "reset"
+                ? "Reset your password and get back to your trip."
+                : "Sign in to your account and make your Jasper Jean trip easier."}
         </p>
         <img
           className="authBusArt"
@@ -1673,7 +1776,7 @@ function Auth({ run, notify, loggedIn, reset }) {
           </button>
         </form>
         <div className="actions">
-          {["login", "signup", "forgot", "staff"]
+          {(staffOnly ? [] : ["login", "signup", "forgot"])
             .filter(
               (m) =>
                 m !== mode &&
@@ -1699,6 +1802,12 @@ function Auth({ run, notify, loggedIn, reset }) {
               </button>
             ))}
         </div>
+        {staffOnly && (
+          <div className="actions">
+            <a href="/kiosk/">Open passenger kiosk</a>
+            <a href="/">Open passenger app</a>
+          </div>
+        )}
       </section>
       <aside className="authFeatures" aria-label="Tele-port features">
         {[

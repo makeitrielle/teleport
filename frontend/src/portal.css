@@ -1,5 +1,114 @@
 @import url("https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
 
+.kiosk-landing {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  margin: 0;
+  padding: clamp(24px, 6vw, 80px);
+  overflow: hidden;
+  background: #fff;
+  color: #292b32;
+}
+.kiosk-landing-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+}
+.kiosk-landing-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: min(100%, 800px);
+  padding-bottom: 8vh;
+}
+.kiosk-landing h1 {
+  margin: 0;
+  color: #d86624;
+  font-family: "Baloo 2", ui-rounded, system-ui, sans-serif;
+  font-size: clamp(48px, 10vw, 136px);
+  font-style: italic;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  text-shadow: 0 2px 0 #f5c04c;
+}
+.kiosk-landing-underline {
+  width: clamp(110px, 26vw, 320px);
+  height: 7px;
+  background: #dc742a;
+  border-radius: 50%;
+  transform: rotate(-5deg);
+  margin: 4px 0 24px;
+}
+.kiosk-landing-copy > p {
+  color: #292b32;
+  font-weight: 800;
+  font-size: clamp(15px, 2.2vw, 28px);
+  letter-spacing: 0.08em;
+  margin: 0 0 clamp(32px, 6vh, 64px);
+}
+.kiosk-begin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 3vw, 36px);
+  padding: clamp(20px, 3vw, 34px) clamp(28px, 5vw, 64px);
+  min-height: 100px;
+  border: 2px solid #ffc26e;
+  border-radius: 22px;
+  color: #fff8df;
+  background: linear-gradient(135deg, #ff901e, #f36a18);
+  box-shadow: 0 12px 30px rgba(210, 88, 18, 0.2);
+  font-size: clamp(18px, 2.6vw, 34px);
+  font-weight: 800;
+  line-height: 1.25;
+  touch-action: manipulation;
+}
+.kiosk-begin svg {
+  width: clamp(36px, 5vw, 64px);
+  height: clamp(36px, 5vw, 64px);
+  stroke-width: 1.5;
+  flex-shrink: 0;
+}
+.kiosk-begin:hover {
+  background: linear-gradient(135deg, #f78316, #e95713);
+  border-color: #ffbc54;
+}
+.kiosk-begin:focus-visible {
+  outline: 4px solid #98451f;
+  outline-offset: 6px;
+}
+@media (max-height: 500px) {
+  .kiosk-landing-copy {
+    padding-bottom: 0;
+  }
+  .kiosk-landing h1 {
+    font-size: clamp(40px, 12vh, 72px);
+  }
+  .kiosk-landing-underline {
+    margin-bottom: 12px;
+  }
+  .kiosk-landing-copy > p {
+    margin-bottom: 20px;
+  }
+  .kiosk-begin {
+    min-height: 72px;
+    padding: 14px 28px;
+    font-size: 20px;
+  }
+}
+
 :root {
   font-family:
     "Plus Jakarta Sans",
@@ -895,6 +1004,24 @@ footer {
 }
 
 /* Passenger presentation follows the original app screens. */
+.staff-portal.auth-page {
+  display: block;
+  max-width: none;
+  background: var(--page-background);
+}
+.staff-portal.auth-page > header,
+.staff-portal.auth-page > nav,
+.staff-portal.auth-page > footer {
+  display: none;
+}
+.staff-portal.auth-page > main {
+  display: flex;
+  align-items: center;
+  max-width: none;
+  min-height: 100vh;
+  padding: clamp(18px, 4vw, 48px);
+  background: transparent;
+}
 .passenger-app {
   background: var(--bg);
 }
