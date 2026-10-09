@@ -13,7 +13,7 @@ import {
   isObjectId,
 } from "../security.js";
 import { audit } from "../models/Activity.js";
-import { canUseSeat } from "../../shared/seatPolicy.js";
+import { canUseSeat, isSeatMonitored } from "../../shared/seatPolicy.js";
 import { withReservationStatus } from "../reservationSeats.js";
 const router = express.Router();
 router.get("/", requireAuth, async (req, res) => {
@@ -110,7 +110,7 @@ async function issueTicket(req, res, selfService) {
     lon > 180
   )
     return res.status(400).json({ error: "A valid drop-off pin is required." });
-  if (!bus.monitoredSeatIds.includes(Number(seatId)))
+  if (!isSeatMonitored(bus, seatId))
     return res.status(409).json({ error: "Seat sensor is unavailable." });
   const locked = await Bus.findOneAndUpdate(
     {

@@ -7,7 +7,11 @@ import Admin from "../models/Admin.js";
 import Bus from "../models/Bus.js";
 import Ticket from "../models/Ticket.js";
 import { hashToken, hashPassword } from "../security.js";
-import { kioskSeatLayout, isPrioritySeat } from "../../shared/seatPolicy.js";
+import {
+  kioskSeatLayout,
+  isPrioritySeat,
+  isSeatMonitored,
+} from "../../shared/seatPolicy.js";
 process.env.TELEPORT_TEST_MODE = "true";
 const { app } = await import("../server.js");
 test("self-service kiosk preserves priority seating, prevents duplicate booking and keeps staff routes private", async () => {
@@ -184,6 +188,15 @@ test("self-service kiosk preserves priority seating, prevents duplicate booking 
       ).status,
       401,
     );
+    await Bus.collection.updateOne(
+      { _id: bus._id },
+      { $unset: { monitoredSeatIds: "" } },
+    );
+    const legacyMonitor = await fetch(base + "/tickets/kiosk/buses");
+    assert.deepEqual(
+      (await legacyMonitor.json())[0].monitoredSeatIds,
+      [1, 2, 3, 4, 5],
+    );
   } finally {
     if (server) await new Promise((resolve) => server.close(resolve));
     await mongoose.disconnect();
@@ -204,4 +217,12 @@ test("61-seat layout has five priority seats and six seats in the last row", () 
   );
   assert.equal(seats[60].sensor, "ok");
   assert.equal(seats[5].sensor, "fault");
+});
+
+test("legacy buses without a monitored-seat list safely use the five installed sensors", () => {
+  assert.equal(isSeatMonitored({}, 1), true);
+  assert.equal(isSeatMonitored({}, 5), true);
+  assert.equal(isSeatMonitored({}, 6), false);
+  assert.equal(isSeatMonitored({ monitoredSeatIds: [] }, 1), false);
+  assert.equal(isSeatMonitored({ monitoredSeatIds: [6] }, 6), true);
 });

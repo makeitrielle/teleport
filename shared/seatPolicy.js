@@ -24,3 +24,14 @@ export function canUseSeat(bus, seatId, passengerType) {
     !isPrioritySeat(bus, seatId) || ["pwd", "senior"].includes(passengerType)
   );
 }
+
+// Older bus records may omit the list. The installed hardware monitors seats 1–5.
+// An explicitly empty list still means that no sensors are configured.
+export function monitoredSeatIds(bus) {
+  return Array.isArray(bus?.monitoredSeatIds)
+    ? bus.monitoredSeatIds
+    : [1, 2, 3, 4, 5];
+}
+export function isSeatMonitored(bus, seatId) {
+  return monitoredSeatIds(bus).includes(Number(seatId));
+}

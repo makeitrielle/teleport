@@ -39,6 +39,7 @@ import {
   canUseSeat,
   isPrioritySeat,
   kioskSeatLayout,
+  isSeatMonitored,
 } from "../../shared/seatPolicy.js";
 import "./portal.css";
 
@@ -1471,7 +1472,7 @@ function Walkup({ run, open, close }) {
     available = (bus?.seats || []).filter(
       (s) =>
         canUseSeat(bus, s.id, category) &&
-        bus.monitoredSeatIds.includes(s.id) &&
+        isSeatMonitored(bus, s.id) &&
         liveSeat(s) &&
         s.status === "available" &&
         s.occupancy === "available",
@@ -1576,7 +1577,7 @@ function Walkup({ run, open, close }) {
                               : (i % 5) + 2
                             : i - 54,
                       }}
-                      className={`kiosk-seat-button ${priorityOnly ? "priority" : !liveSeat(s) || !bus?.monitoredSeatIds.includes(s.id) ? "offline" : !ok ? "occupied" : "available"} ${Number(seat) === s.id ? "selected" : ""}`}
+                      className={`kiosk-seat-button ${priorityOnly ? "priority" : !liveSeat(s) || !isSeatMonitored(bus, s.id) ? "offline" : !ok ? "occupied" : "available"} ${Number(seat) === s.id ? "selected" : ""}`}
                       disabled={!ok || pending}
                       aria-pressed={Number(seat) === s.id}
                       aria-label={`Seat ${s.id}${!ok ? (priorityOnly ? ", PWD and senior only" : !liveSeat(s) ? ", sensor unavailable" : ", unavailable") : ""}`}
