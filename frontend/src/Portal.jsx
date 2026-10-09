@@ -1,6 +1,21 @@
 import React, { useState, useEffect, useRef } from "react";
 import QRCode from "qrcode";
 import {
+  Home,
+  ClipboardList,
+  Ticket as TicketIcon,
+  MapPin,
+  User,
+  Monitor,
+  LayoutDashboard,
+  Settings,
+  BookOpen,
+  Route,
+  Bell,
+  Armchair,
+  ChevronRight,
+} from "lucide-react";
+import {
   MapContainer,
   TileLayer,
   Marker,
@@ -56,6 +71,86 @@ function Empty({ children }) {
 }
 function Pill({ children }) {
   return <span className="pill">{children}</span>;
+}
+function Logo() {
+  return (
+    <span className="original-logo">
+      <img src="/jasper-jean-bus.png" alt="Jasper Jean bus" />
+      <strong>TELE-PORT</strong>
+    </span>
+  );
+}
+function NavigationIcon({ page }) {
+  const Icon =
+    {
+      Dashboard: Home,
+      "Trip Schedule": Route,
+      "My Bookings": ClipboardList,
+      Tickets: TicketIcon,
+      "Bus Tracking": MapPin,
+      "Activity History": ClipboardList,
+      Account: User,
+      Kiosk: Monitor,
+      Management: LayoutDashboard,
+      Settings,
+      "User Guide": BookOpen,
+    }[page] || Home;
+  return <Icon size={19} aria-hidden="true" />;
+}
+function TravelWelcome({ name, navigate }) {
+  return (
+    <>
+      <section className="passengerHero">
+        <div className="passengerHeroCopy">
+          <div>Good day,</div>
+          <div className="passengerHeroTitle">{name || "Passenger"}!</div>
+          <p>Here’s what’s happening with your bus and travel today.</p>
+        </div>
+        <img src="/jasper-jean-bus.png" alt="Jasper Jean bus" />
+      </section>
+      <div className="homeCardGrid">
+        {[
+          [MapPin, "MAPS", "View the live route", "Bus Tracking", "maps"],
+          [
+            Armchair,
+            "SEAT AVAILABILITY",
+            "Live count straight from seat sensors",
+            "Bus Tracking",
+            "seats",
+          ],
+          [
+            TicketIcon,
+            "MY TICKET",
+            "View your trip details",
+            "Tickets",
+            "tickets",
+          ],
+          [
+            Route,
+            "TRIP SCHEDULE",
+            "View routes and stop times",
+            "Trip Schedule",
+            "schedule",
+          ],
+        ].map(([Icon, title, subtitle, target, tone]) => (
+          <button
+            className="homeCard"
+            key={title}
+            onClick={() => navigate(target)}
+          >
+            <span className={`homeCardIcon ${tone}`}>
+              <Icon size={22} />
+            </span>
+            <span className="homeCardCopy">
+              <strong>{title}</strong>
+              <small>{subtitle}</small>
+            </span>
+            <ChevronRight size={18} aria-hidden="true" />
+          </button>
+        ))}
+      </div>
+    </>
+  );
 }
 function MapClick({ setPoint }) {
   useMapEvents({
@@ -270,14 +365,12 @@ export default function Portal() {
     "User Guide",
   ];
   return (
-    <div className={kiosk ? "portal kiosk" : "portal"}>
+    <div
+      className={`${kiosk ? "portal kiosk" : "portal"}${staff ? " staff-portal" : ""}${page === "Sign in" || page === "Reset password" ? " auth-page" : ""}`}
+    >
       <header>
         <a className="brand" href={kiosk ? "/?mode=kiosk" : "/"}>
-          <span className="brand-mark">SM</span>
-          <span>
-            <strong>SM Pala-Pala</strong>
-            <small>Bus reservations · TELE-PORT</small>
-          </span>
+          <Logo />
         </a>
         <div className="header-actions">
           <button
@@ -305,6 +398,9 @@ export default function Portal() {
         </div>
       </header>
       <nav aria-label="Main navigation">
+        <a className="sidebar-brand" href={kiosk ? "/?mode=kiosk" : "/"}>
+          <Logo />
+        </a>
         {(kiosk
           ? [
               "Kiosk",
@@ -328,7 +424,8 @@ export default function Portal() {
             aria-current={page === p ? "page" : undefined}
             onClick={() => navigate(p)}
           >
-            {p}
+            <NavigationIcon page={p} />
+            <span>{p}</span>
           </button>
         ))}
       </nav>
@@ -387,6 +484,12 @@ export default function Portal() {
               />
             ) : (
               <>
+                {page === "Dashboard" && (
+                  <TravelWelcome
+                    name={session?.user?.name}
+                    navigate={navigate}
+                  />
+                )}
                 {(page === "Trip Schedule" || page === "Dashboard") && (
                   <Schedules
                     session={session}
@@ -1056,7 +1159,9 @@ function Kiosk({ staff, run, open, navigate }) {
   if (walkup && staff)
     return <Walkup run={run} open={open} close={() => setWalkup(false)} />;
   return (
-    <section>
+    <section className="original-kiosk">
+      <div className="kiosk-wordmark">TELE-PORT</div>
+      <div className="kiosk-services">BUS SERVICES</div>
       <p className="eyebrow">Welcome to SM Pala-Pala</p>
       <h1>Verify your reservation</h1>
       <p>
@@ -1278,105 +1383,155 @@ function Auth({ run, notify, loggedIn, reset }) {
   const [mode, setMode] = useState(reset ? "reset" : "login"),
     [pending, setPending] = useState(false);
   return (
-    <section className="auth">
-      <h1>
-        {
+    <div className="authLayout">
+      <section className="authIntro">
+        <div className="authBrand">TELE-PORT</div>
+        <h1>
+          {mode === "signup" ? (
+            <>
+              Create your <span>account</span>
+            </>
+          ) : mode === "forgot" || mode === "reset" ? (
+            <>
+              Reset your <span>password</span>
+            </>
+          ) : (
+            <>
+              Welcome <span>back!</span>
+            </>
+          )}
+        </h1>
+        <p>
+          {mode === "signup"
+            ? "Create an account to follow your bus, check seats, and keep your trip details together."
+            : mode === "forgot" || mode === "reset"
+              ? "Reset your password and get back to your trip."
+              : "Sign in to your account and make your Jasper Jean trip easier."}
+        </p>
+        <img
+          className="authBusArt"
+          src="/jasper-jean-bus.png"
+          alt="Jasper Jean bus"
+        />
+      </section>
+      <section className="auth">
+        <h1>
           {
-            login: "Passenger sign in",
-            signup: "Create passenger account",
-            staff: "Staff sign in",
-            forgot: "Reset your password",
-            reset: "Set a new password",
-          }[mode]
-        }
-      </h1>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          const f = Object.fromEntries(new FormData(e.currentTarget));
-          setPending(true);
-          run(async () => {
-            if (mode === "signup") {
-              await api.passengerSignup(f);
-              notify(
-                "Account created. Check your email for the verification link.",
-              );
-            } else if (mode === "forgot") {
-              await api.passengerForgotPassword(f.email);
-              notify("If this account exists, a reset link has been sent.");
-            } else if (mode === "reset") {
-              await api.passengerResetPassword(
-                new URLSearchParams(location.search).get("reset"),
-                f.password,
-              );
-              history.replaceState(null, "", "/");
-              setMode("login");
-              notify("Password updated. Sign in again.");
-            } else {
-              if (mode === "staff") await api.adminLogin(f.kioskId, f.password);
-              else await api.passengerLogin(f.email, f.password);
-              await loggedIn();
-            }
-          }).finally(() => setPending(false));
-        }}
-      >
-        {mode === "signup" && (
-          <Field label="Full name" name="name" required maxLength={120} />
-        )}{" "}
-        {mode === "staff" ? (
-          <Field
-            label="Staff ID"
-            name="kioskId"
-            required
-            autoComplete="username"
-          />
-        ) : (
-          mode !== "reset" && (
-            <Field
-              label="Email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-            />
-          )
-        )}
-        {mode !== "forgot" && (
-          <Field
-            label="Password"
-            name="password"
-            type="password"
-            minLength={mode === "signup" || mode === "reset" ? 8 : undefined}
-            maxLength={256}
-            required
-            autoComplete={
-              mode === "signup" || mode === "reset"
-                ? "new-password"
-                : "current-password"
-            }
-          />
-        )}
-        <button className="primary" disabled={pending}>
-          {pending ? "Please wait…" : "Continue"}
-        </button>
-      </form>
-      <div className="actions">
-        {["login", "signup", "forgot", "staff"]
-          .filter((m) => m !== mode)
-          .map((m) => (
-            <button key={m} onClick={() => setMode(m)}>
-              {
-                {
-                  login: "Passenger sign in",
-                  signup: "Create account",
-                  forgot: "Forgot password",
-                  staff: "Staff sign in",
-                }[m]
+            {
+              login: "Passenger sign in",
+              signup: "Create passenger account",
+              staff: "Staff sign in",
+              forgot: "Reset your password",
+              reset: "Set a new password",
+            }[mode]
+          }
+        </h1>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const f = Object.fromEntries(new FormData(e.currentTarget));
+            setPending(true);
+            run(async () => {
+              if (mode === "signup") {
+                await api.passengerSignup(f);
+                notify(
+                  "Account created. Check your email for the verification link.",
+                );
+              } else if (mode === "forgot") {
+                await api.passengerForgotPassword(f.email);
+                notify("If this account exists, a reset link has been sent.");
+              } else if (mode === "reset") {
+                await api.passengerResetPassword(
+                  new URLSearchParams(location.search).get("reset"),
+                  f.password,
+                );
+                history.replaceState(null, "", "/");
+                setMode("login");
+                notify("Password updated. Sign in again.");
+              } else {
+                if (mode === "staff") await api.adminLogin(f.kioskId, f.password);
+                else await api.passengerLogin(f.email, f.password);
+                await loggedIn();
               }
-            </button>
-          ))}
-      </div>
-    </section>
+            }).finally(() => setPending(false));
+          }}
+        >
+          {mode === "signup" && (
+            <Field label="Full name" name="name" required maxLength={120} />
+          )}{" "}
+          {mode === "staff" ? (
+            <Field
+              label="Staff ID"
+              name="kioskId"
+              required
+              autoComplete="username"
+            />
+          ) : (
+            mode !== "reset" && (
+              <Field
+                label="Email"
+                name="email"
+                type="email"
+                required
+                autoComplete="email"
+              />
+            )
+          )}
+          {mode !== "forgot" && (
+            <Field
+              label="Password"
+              name="password"
+              type="password"
+              minLength={mode === "signup" || mode === "reset" ? 8 : undefined}
+              maxLength={256}
+              required
+              autoComplete={
+                mode === "signup" || mode === "reset"
+                  ? "new-password"
+                  : "current-password"
+              }
+            />
+          )}
+          <button className="primary" disabled={pending}>
+            {pending ? "Please wait…" : "Continue"}
+          </button>
+        </form>
+        <div className="actions">
+          {["login", "signup", "forgot", "staff"]
+            .filter((m) => m !== mode)
+            .map((m) => (
+              <button key={m} onClick={() => setMode(m)}>
+                {
+                  {
+                    login: "Passenger sign in",
+                    signup: "Create account",
+                    forgot: "Forgot password",
+                    staff: "Staff sign in",
+                  }[m]
+                }
+              </button>
+            ))}
+        </div>
+      </section>
+      <aside className="authFeatures" aria-label="Tele-port features">
+        {[
+          [MapPin, "Real-time location", "Follow your bus along the route."],
+          [Armchair, "Seat availability", "Check current seat information."],
+          [Bell, "Trip notifications", "See updates about your trip."],
+        ].map(([Icon, title, detail]) => (
+          <div className="authFeature" key={title}>
+            <span className="authFeatureIcon">
+              <Icon size={20} />
+            </span>
+            <div>
+              <strong>{title}</strong>
+              <br />
+              <small>{detail}</small>
+            </div>
+          </div>
+        ))}
+      </aside>
+    </div>
   );
 }
 function Account({ session, run, saved }) {

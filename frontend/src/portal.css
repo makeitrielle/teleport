@@ -438,6 +438,427 @@ footer {
   color: var(--muted);
   border-top: 1px solid var(--border);
 }
+.portal {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100vh;
+  margin: 0 auto;
+  background: var(--bg);
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.15);
+}
+.portal > header {
+  padding: 18px 18px 22px;
+  background: linear-gradient(135deg, #c96a2b, #98451f);
+  border: 0;
+  border-radius: 0 0 28px 28px;
+  flex-wrap: wrap;
+}
+.portal > header .header-actions button {
+  min-height: 34px;
+  padding: 8px 12px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-size: 12px;
+}
+.original-logo {
+  width: 160px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.original-logo img {
+  width: 90px;
+  height: 58px;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+.original-logo strong {
+  color: #98451f;
+  font-size: 18px;
+  font-family: "Baloo 2", ui-rounded, system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 #d5a53b;
+}
+.sidebar-brand {
+  display: none;
+}
+.portal > main {
+  min-width: 0;
+  padding: 18px;
+}
+.portal > nav {
+  position: sticky;
+  bottom: 0;
+  z-index: 1000;
+  background: var(--surface);
+  padding: 10px 6px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  border-bottom: 0;
+  gap: 4px;
+}
+.portal > nav button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.portal > nav button[aria-current="page"] {
+  color: var(--link);
+  background: var(--soft);
+}
+.portal {
+  display: flex;
+  flex-direction: column;
+}
+.portal > nav {
+  order: 4;
+}
+.portal > main {
+  flex: 1;
+}
+.passengerHero {
+  min-height: 142px;
+  border-radius: 22px;
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  background: linear-gradient(110deg, #e9d9bc 0%, #e6c78e 58%, #d88a4b 100%);
+  color: #252a32;
+  margin: 0 0 14px;
+}
+.passengerHeroCopy {
+  position: relative;
+  z-index: 1;
+  max-width: 67%;
+  font-size: 15px;
+}
+.passengerHeroTitle {
+  margin: 4px 0;
+  font-size: clamp(24px, 3vw, 38px);
+  line-height: 1.1;
+  font-weight: 800;
+}
+.passengerHeroCopy p {
+  font-size: 13px;
+  color: #5d6672;
+  margin: 8px 0 0;
+}
+.passengerHero img {
+  position: absolute;
+  right: -2%;
+  bottom: -3%;
+  width: 43%;
+  height: 100%;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+.homeCardGrid {
+  display: grid;
+  gap: 14px;
+  margin: 0 0 24px;
+}
+.homeCard {
+  width: 100%;
+  text-align: left;
+  border-radius: 20px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 6px 18px rgba(20, 22, 43, 0.06);
+}
+.homeCardCopy {
+  flex: 1;
+}
+.homeCardCopy strong {
+  font-family: "Baloo 2", ui-rounded, system-ui, sans-serif;
+  font-size: 15.5px;
+}
+.homeCardCopy small {
+  display: block;
+  font-size: 12.5px;
+  margin-top: 2px;
+}
+.homeCardIcon,
+.authFeatureIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #ead2ac;
+  color: #98451f;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.homeCardIcon.seats {
+  background: #e3ecff;
+  color: #1d56b3;
+}
+.homeCardIcon.tickets {
+  background: #fff1db;
+  color: #c97a1a;
+}
+.homeCardIcon.schedule {
+  background: #e8f9ee;
+  color: #16753a;
+}
+.authLayout {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  gap: 20px;
+  margin: 20px auto;
+}
+.authIntro {
+  text-align: center;
+  margin: 0;
+}
+.authBrand {
+  color: var(--link);
+  font-family: "Baloo 2", ui-rounded, system-ui, sans-serif;
+  font-size: 29px;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+}
+.authIntro h1 {
+  margin: 18px 0 8px;
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+}
+.authIntro h1 span {
+  color: var(--brand);
+}
+.authIntro p {
+  max-width: 320px;
+  margin: 8px auto;
+  font-size: 15px;
+}
+.authBusArt {
+  display: block;
+  width: min(78vw, 340px);
+  max-width: 100%;
+  max-height: 170px;
+  object-fit: contain;
+  margin: 0 auto -8px;
+  mix-blend-mode: multiply;
+}
+.authLayout .auth {
+  width: 100%;
+  margin: 0;
+  padding: clamp(24px, 3vw, 38px);
+}
+.auth .primary {
+  width: 100%;
+  font-family: "Baloo 2", ui-rounded, system-ui, sans-serif;
+}
+.auth .actions {
+  gap: 6px;
+  margin-bottom: 0;
+}
+.auth .actions button {
+  flex: 1;
+  font-size: 12.5px;
+}
+.authFeatures {
+  display: none;
+}
+.authFeature {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.authFeatureIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+.kiosk {
+  max-width: none;
+}
+.kiosk > main {
+  width: 100%;
+  background:
+    radial-gradient(ellipse at 0% 100%, #c96a2b 0%, transparent 44%),
+    radial-gradient(ellipse at 100% 0%, #d5a53b 0%, transparent 42%), var(--bg);
+}
+:root[data-theme="dark"] .kiosk > main {
+  background: var(--bg);
+}
+.original-kiosk {
+  max-width: 860px;
+  margin: 0 auto;
+  text-align: center;
+  padding: clamp(20px, 5vw, 64px);
+}
+.kiosk-wordmark {
+  color: var(--brand);
+  font-family: "Baloo 2", ui-rounded, system-ui, sans-serif;
+  font-weight: 800;
+  font-size: clamp(44px, 10vw, 104px);
+  letter-spacing: -0.055em;
+  line-height: 1;
+  text-shadow: 0 3px 0 #d5a53b;
+}
+.kiosk-services {
+  margin: 18px 0 26px;
+  color: var(--link);
+  font-weight: 700;
+  letter-spacing: 0.2em;
+}
+.original-kiosk .kiosk-actions {
+  justify-content: center;
+}
+.original-kiosk .field {
+  margin-left: auto;
+  margin-right: auto;
+  text-align: left;
+}
+.original-kiosk .scanner {
+  margin-left: auto;
+  margin-right: auto;
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .portal:not(.kiosk) {
+    max-width: 600px;
+    margin: 28px auto;
+    border-radius: 32px;
+    overflow: clip;
+    min-height: calc(100vh - 56px);
+    box-shadow: 0 30px 80px rgba(20, 22, 43, 0.22);
+  }
+}
+@media (min-width: 1024px) {
+  .portal {
+    max-width: 1280px;
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-rows: auto 1fr auto;
+    background: var(--surface);
+    box-shadow: 0 0 0 1px var(--border);
+  }
+  .portal > nav {
+    grid-column: 1;
+    grid-row: 1 / 4;
+    order: 0;
+    position: sticky;
+    top: 0;
+    bottom: auto;
+    height: 100vh;
+    flex-direction: column;
+    overflow: auto;
+    padding: 28px 16px;
+    border-top: 0;
+    border-right: 1px solid var(--border);
+  }
+  .sidebar-brand {
+    display: block;
+    padding: 4px 10px 26px;
+    text-decoration: none;
+  }
+  .portal > nav button {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 14px;
+    font-size: 14px;
+    text-align: left;
+  }
+  .portal > header,
+  .portal > main,
+  .portal > footer {
+    grid-column: 2;
+  }
+  .portal > header {
+    grid-row: 1;
+    padding: 18px 24px 22px;
+  }
+  .portal > main {
+    grid-row: 2;
+    width: 100%;
+    padding: 24px 32px;
+    margin: 0;
+  }
+  .portal > footer {
+    grid-row: 3;
+  }
+  .homeCardGrid {
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  .passengerHero {
+    min-height: 176px;
+    padding: 24px 28px;
+  }
+  .passengerHeroCopy {
+    max-width: 58%;
+  }
+  .passengerHero img {
+    right: 1%;
+    bottom: -12%;
+    width: min(43%, 440px);
+    height: 118%;
+  }
+  .auth-page {
+    max-width: none;
+  }
+  .auth-page > main {
+    padding: clamp(18px, 4vw, 48px);
+    background: var(--page-background);
+  }
+  .authLayout {
+    max-width: 1260px;
+    grid-template-columns: minmax(180px, 1fr) minmax(320px, 470px) minmax(
+        170px,
+        1fr
+      );
+    gap: clamp(20px, 3vw, 58px);
+    min-height: 65vh;
+  }
+  .authIntro {
+    text-align: left;
+  }
+  .authIntro p {
+    margin: 8px 0;
+  }
+  .authBusArt {
+    width: min(125%, 500px);
+    max-width: none;
+    max-height: none;
+    margin: 12px 0 0 -12%;
+  }
+  .authFeatures {
+    display: grid;
+    gap: 20px;
+  }
+  .staff-portal {
+    grid-template-columns: 230px minmax(0, 1fr);
+  }
+  .staff-portal > header,
+  .kiosk > header {
+    border-radius: 0;
+  }
+}
 @media (max-width: 650px) {
   header {
     padding: 16px;
