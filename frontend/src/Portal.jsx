@@ -38,6 +38,8 @@ import "leaflet/dist/leaflet.css";
 import { api, request } from "./api.js";
 import { FARE_MATRIX, fareDirectionForRoute } from "../../shared/fareMatrix.js";
 import { gpsOnline, haversineMeters } from "../../shared/proximity.js";
+import { seatAvailability } from "../../shared/nearbyAlerts.js";
+import { useNearbyBusAlerts } from "./useNearbyBusAlerts.js";
 import {
   canUseSeat,
   isPrioritySeat,
@@ -414,6 +416,10 @@ export default function Portal() {
   const staff = ["staff", "admin"].includes(session?.role),
     admin = session?.role === "admin";
   const passengerUI = !kiosk && !staffPage;
+  const nearbyAlerts = useNearbyBusAlerts(
+    passengerUI && session?.role === "passenger",
+    session?.user?._id || session?.user?.id,
+  );
   useEffect(() => {
     document.title = kiosk
       ? "TELE-PORT · Kiosk"
@@ -697,6 +703,22 @@ export default function Portal() {
             ))}
       </nav>
       <main>
+        {passengerUI && nearbyAlerts.alerts[0] && page !== "Notifications" && (
+          <div
+            className="alert nearby-arrival-alert"
+            role="status"
+            aria-live="polite"
+          >
+            <Bell size={20} />
+            <div>
+              <strong>{nearbyAlerts.alerts[0].title}</strong>
+              <p>{nearbyAlerts.alerts[0].body}</p>
+            </div>
+            <button onClick={() => navigate("Notifications")}>
+              View alerts
+            </button>
+          </div>
+        )}
         {!online && (
           <div className="alert" role="status">
             You are offline. Booking, ticket verification, schedules and
@@ -887,11 +909,14 @@ export default function Portal() {
                     run={run}
                     refresh={refresh}
                     passenger={passengerUI}
+                    nearby={nearbyAlerts}
                   />
                 )}
                 {page === "Seat Availability" && <PassengerSeats run={run} />}
                 {page === "Notifications" && (
-                  <PassengerNotifications notifications={notifications} />
+                  <PassengerNotifications
+                    notifications={[...nearbyAlerts.alerts, ...notifications]}
+                  />
                 )}
                 {page === "Management" && admin && (
                   <Management
@@ -2126,12 +2151,11 @@ function PassengerNotifications({ notifications }) {
         </span>
         <div>
           <strong>Bus proximity alerts</strong>
-          <small>
-            Updates use the bus GPS location and your active reservation.
-          </small>
+          <small>Nearby alerts include the current available seat count.</small>
           <p className="notification-note">
-            Open Maps to see the latest GPS status. Alerts appear here when your
-            bus approaches its configured stop.
+            Enable your location in Maps. Alerts appear when an online bus is
+            within 100 meters or estimated to reach you within 10 seconds. Keep
+            the app open. Arrival times depend on GPS updates.
           </p>
         </div>
       </article>
@@ -2428,69 +2452,23 @@ function NearbyMapBounds({ points, viewKey }) {
   }, [map, viewKey]);
   return null;
 }
-function busSeatCounts(bus) {
-  const seats = bus.seats || [];
-  return {
-    available: seats.filter(
-      (s) =>
-        isSeatMonitored(bus, s.id) &&
-        liveSeat(s) &&
-        s.occupancy === "available" &&
-        s.status !== "booked",
-    ).length,
-    unavailable: seats.filter(
-      (s) =>
-        s.status === "booked" ||
-        (isSeatMonitored(bus, s.id) &&
-          liveSeat(s) &&
-          s.occupancy === "occupied"),
-    ).length,
-    unknown: seats.filter(
-      (s) =>
-        s.status !== "booked" && (!isSeatMonitored(bus, s.id) || !liveSeat(s)),
-    ).length,
-  };
-}
-function NearbyPassengerMap({ items }) {
-  const [position, setPosition] = useState(null);
-  const [locate, setLocate] = useState(false);
-  const [locationMessage, setLocationMessage] = useState("");
+const busSeatCounts = seatAvailability;
+function NearbyPassengerMap({ items, nearbyAlerts }) {
+  const {
+    position,
+    locate,
+    locationMessage,
+    toggleLocation,
+    browserPermission,
+    enableBrowserNotifications,
+  } = nearbyAlerts;
   const [radius, setRadius] = useState(5);
   const [selectedId, setSelectedId] = useState("");
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 10000);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
-  useEffect(() => {
-    if (!locate) return;
-    if (!navigator.geolocation) {
-      setLocationMessage("Location is unavailable on this device.");
-      setLocate(false);
-      return;
-    }
-    setLocationMessage("Finding your location…");
-    const id = navigator.geolocation.watchPosition(
-      (p) => {
-        setPosition({
-          lat: p.coords.latitude,
-          lon: p.coords.longitude,
-          accuracy: p.coords.accuracy,
-          timestamp: p.timestamp,
-        });
-        setLocationMessage("");
-      },
-      () => {
-        setPosition(null);
-        setLocationMessage(
-          "Location unavailable. Allow location access to find nearby buses.",
-        );
-        setLocate(false);
-      },
-      { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 },
-    );
-    return () => navigator.geolocation.clearWatch(id);
-  }, [locate]);
   const user = position && now - position.timestamp <= 120000 ? position : null;
   const online = (items || []).filter((b) => gpsOnline(b, now));
   const nearby = online
@@ -2525,16 +2503,16 @@ function NearbyPassengerMap({ items }) {
               : "Enable your location to see which buses are nearby."}
           </p>
         </div>
-        <button
-          className="primary"
-          onClick={() => {
-            setPosition(null);
-            setLocate(!locate);
-          }}
-        >
+        <button className="primary" onClick={toggleLocation}>
           <MapPin size={17} />
           {locate ? "Stop using my location" : "Use my location"}
         </button>
+        {browserPermission !== "unsupported" &&
+          browserPermission !== "granted" && (
+            <button onClick={enableBrowserNotifications}>
+              Enable browser alerts
+            </button>
+          )}
         <Field label="Nearby range">
           <select
             value={radius}
@@ -2549,6 +2527,11 @@ function NearbyPassengerMap({ items }) {
         </Field>
       </div>
       {locationMessage && <p role="status">{locationMessage}</p>}
+      <p className="nearby-route-note">
+        With location enabled, alerts include available seats when a bus is
+        within 100 m or estimated to reach you within 10 seconds. Keep the app
+        open; timing depends on fresh GPS and location accuracy.
+      </p>
       <div className="nearby-map-layout">
         <div className="nearby-map-panel">
           <MapContainer
@@ -2672,16 +2655,17 @@ function NearbyPassengerMap({ items }) {
         </aside>
       </div>
       <p className="nearby-route-note">
-        Updates every 10 seconds. Buses disappear when their GPS is stale. Seat
+        Updates every 5 seconds. Buses disappear when their GPS is stale. Seat
         availability uses sensor readings and reservations.
       </p>
     </section>
   );
 }
-function Tracking({ run, refresh, passenger = false }) {
+function Tracking({ run, refresh, passenger = false, nearby }) {
   const [items, setItems] = useState(null),
     [paused, setPaused] = useState(false);
   useEffect(() => {
+    if (passenger) return;
     let active = true;
     const poll = () =>
       request("/tracking")
@@ -2703,8 +2687,9 @@ function Tracking({ run, refresh, passenger = false }) {
       active = false;
       clearInterval(timer);
     };
-  }, [refresh, paused]);
-  if (passenger) return <NearbyPassengerMap items={items} />;
+  }, [refresh, paused, passenger]);
+  if (passenger)
+    return <NearbyPassengerMap items={nearby.items} nearbyAlerts={nearby} />;
   return (
     <section className={passenger ? "passenger-tracking" : undefined}>
       {!passenger && (

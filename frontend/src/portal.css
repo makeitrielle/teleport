@@ -1820,6 +1820,17 @@ summary {
   flex-wrap: wrap;
   margin-bottom: 18px;
 }
+.nearby-arrival-alert {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.nearby-arrival-alert p {
+  margin: 5px 0;
+}
+.nearby-arrival-alert button {
+  margin-left: auto;
+}
 .nearby-map-toolbar > div:first-child {
   flex: 1;
 }
