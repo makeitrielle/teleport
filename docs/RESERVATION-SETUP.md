@@ -127,3 +127,9 @@ Open `/kiosk/` directly; passengers do not need a staff or passenger login. Touc
 Run tests from the root with `npm test`; the first isolated test run may download a MongoDB binary. To reproduce browser QA only, set `TELEPORT_TEST_MODE=true` and run `backend/tests/ui-server.js` with the development frontend. Its documented test credentials work only in that ephemeral test database. Stop that process before starting your real backend. Production never runs it automatically.
 
 The PWA caches only its shell and static assets. APIs and personal ticket records are not cached. Schedules, verification, booking changes and tracking require the live backend. Build with `npm run build` and deploy `frontend/dist`.
+
+## Install the kiosk on Windows
+
+Deploy the updated frontend, then open `https://www.teleport-app.online/kiosk/` in Microsoft Edge on the kiosk computer. Choose the address-bar install icon, or **Settings and more → More tools → Apps → Install this site as an app**. The separate **TELE-PORT Kiosk** manifest starts at `/kiosk/` and keeps the passenger app installation separate.
+
+For a dedicated full-screen terminal, configure Windows Assigned Access with Microsoft Edge and the kiosk URL, or launch Edge with `msedge.exe --kiosk https://www.teleport-app.online/kiosk/ --edge-kiosk-type=fullscreen --no-first-run`. Internet access is required to reserve seats; offline cached screens cannot create bookings. Keep the XP-58 print agent running on the kiosk computer for receipt printing.

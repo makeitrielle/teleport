@@ -366,7 +366,7 @@ export default function Portal() {
           ? ["staff", "admin"].includes(current.role)
           : current.role === "passenger")
       )
-        setPage(staffPage ? "Management" : "Dashboard");
+        setPage(staffPage ? "Trip Schedule" : "Dashboard");
       const params = new URLSearchParams(location.search);
       const token = params.get("verify");
       if (token) {
@@ -473,22 +473,30 @@ export default function Portal() {
     }, 90000);
     return () => clearTimeout(timer);
   }, [ticket, kiosk, page]);
-  const nav = [
-    "Dashboard",
-    "Trip Schedule",
-    ...(session
-      ? [
-          "My Bookings",
-          "Tickets",
-          "Bus Tracking",
-          "Activity History",
-          "Account",
-        ]
-      : []),
-    ...(staff ? ["Kiosk", "Management"] : []),
-    "Settings",
-    "User Guide",
-  ];
+  const nav = staffPage
+    ? [
+        "Trip Schedule",
+        "Tickets",
+        "Bus Tracking",
+        "Activity History",
+        ...(admin ? ["Management"] : []),
+      ]
+    : [
+        "Dashboard",
+        "Trip Schedule",
+        ...(session
+          ? [
+              "My Bookings",
+              "Tickets",
+              "Bus Tracking",
+              "Activity History",
+              "Account",
+            ]
+          : []),
+        ...(staff ? ["Kiosk", "Management"] : []),
+        "Settings",
+        "User Guide",
+      ];
   if (kiosk && !kioskStarted) {
     return (
       <KioskLanding
@@ -652,16 +660,27 @@ export default function Portal() {
                   />
                 )}
                 {(page === "Trip Schedule" ||
-                  (page === "Dashboard" && !passengerUI)) && (
-                  <Schedules
-                    session={session}
-                    refresh={refresh}
+                  (page === "Dashboard" && !passengerUI)) &&
+                  !staffPage && (
+                    <Schedules
+                      session={session}
+                      refresh={refresh}
+                      run={run}
+                      choose={(t) =>
+                        session?.role === "passenger"
+                          ? setTrip(t)
+                          : navigate("Sign in")
+                      }
+                    />
+                  )}
+                {page === "Trip Schedule" && staffPage && staff && (
+                  <Management
+                    admin={false}
+                    schedulesOnly
                     run={run}
-                    choose={(t) =>
-                      session?.role === "passenger"
-                        ? setTrip(t)
-                        : navigate("Sign in")
-                    }
+                    notify={setNotice}
+                    refresh={refresh}
+                    changed={changed}
                   />
                 )}
                 {page === "Dashboard" && !passengerUI && (
@@ -719,7 +738,7 @@ export default function Portal() {
                         );
                       }
                       navigate(
-                        s.role === "passenger" ? "Dashboard" : "Management",
+                        s.role === "passenger" ? "Dashboard" : "Trip Schedule",
                       );
                     }}
                   />
@@ -772,7 +791,7 @@ export default function Portal() {
                 {page === "Notifications" && (
                   <PassengerNotifications notifications={notifications} />
                 )}
-                {page === "Management" && staff && (
+                {page === "Management" && admin && (
                   <Management
                     admin={admin}
                     run={run}
@@ -1972,9 +1991,6 @@ function PassengerProfile({
             } else navigate("Settings");
           },
         ],
-        [ClipboardList, "My bookings", () => navigate("My Bookings")],
-        [TicketIcon, "My tickets", () => navigate("Tickets")],
-        [Shield, "Help center", () => navigate("User Guide")],
         [Settings, "Settings", () => navigate("Settings")],
       ].map(([Icon, label, action]) => (
         <button className="profile-row" key={label} onClick={action}>
@@ -2458,7 +2474,14 @@ function Tracking({ run, refresh, passenger = false }) {
     </section>
   );
 }
-function Management({ admin, run, notify, refresh, changed }) {
+function Management({
+  admin,
+  schedulesOnly = false,
+  run,
+  notify,
+  refresh,
+  changed,
+}) {
   const [buses, setBuses] = useState([]),
     [trips, setTrips] = useState([]),
     [users, setUsers] = useState([]),
@@ -2508,16 +2531,19 @@ function Management({ admin, run, notify, refresh, changed }) {
   };
   return (
     <section>
-      <h1>Staff dashboard</h1>
+      <h1>{schedulesOnly ? "Trip schedules" : "Management"}</h1>
       <div className="actions">
-        {[
-          "Schedules",
-          "Buses",
-          "Routes",
-          ...(admin
-            ? ["Tracking setup", "Passenger categories", "Staff accounts"]
-            : []),
-        ].map((t) => (
+        {(schedulesOnly
+          ? []
+          : [
+              "Schedules",
+              "Buses",
+              "Routes",
+              ...(admin
+                ? ["Tracking setup", "Passenger categories", "Staff accounts"]
+                : []),
+            ]
+        ).map((t) => (
           <button
             key={t}
             aria-current={tab === t ? "page" : undefined}
