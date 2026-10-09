@@ -55,31 +55,11 @@ The LILYGO receives seat updates from the Mega and uses WiFi to reach the backen
 
 Flash `mega_seat_sensor.ino` to the Arduino Mega.
 
-For the LILYGO board, use the appropriate ESP32 firmware located in:
+For the LILYGO T-SIM A7670E board, flash `esp_a7670e_tracker/esp_a7670e_tracker.ino` from its own sketch folder. It receives Mega seat readings over UART and sends GPS and seat updates over WiFi using authenticated HTTPS to `teleport-3qfa.onrender.com`, the same backend used by the website.
 
-```text
-firmware/esp_wifi_bridge/
-```
+Copy `esp_a7670e_tracker/device_config.example.h` to `device_config.h` in that folder. Configure the bus device key generated in the staff tracking setup and a valid trusted root CA certificate for the backend. Configure WiFi credentials in the tracker sketch and keep `BUS_ID` identical to the database bus ID (`BUS-001` by default). Keep device keys and WiFi passwords private.
 
-The project currently includes:
-
-```text
-esp_wifi_bridge.ino
-esp_a7670e_tracker (1).ino
-```
-
-The Wi-Fi bridge is used when the ESP32 communicates with the backend over the same Wi-Fi network.
-
-Configure the following values in the ESP32 Wi-Fi firmware:
-
-```cpp
-WIFI_SSID
-WIFI_PASSWORD
-SERVER_HOST
-SERVER_PORT
-```
-
-Install the required Arduino libraries, including TinyGSM and ArduinoJson, when required by the selected ESP32 firmware.
+The separate `esp_wifi_bridge` is a seat-only LAN development alternative; its default URL is a placeholder and it does not replace the GPS tracker.
 
 The ESP32 sends GPS information and seat updates to the backend. It can also check passenger drop-off locations and instruct the Mega to play the appropriate voice alert.
 

@@ -2050,7 +2050,8 @@ function PassengerSeats({ run }) {
   useEffect(() => {
     let active = true;
     const poll = () =>
-      request("/tracking")
+      api
+        .getKioskBuses()
         .then((data) => active && setBuses(data))
         .catch(
           (e) =>
@@ -2073,38 +2074,40 @@ function PassengerSeats({ run }) {
         <Empty>
           {buses === null
             ? "Loading seat sensors…"
-            : "No buses are assigned to your active reservations."}
+            : "No buses are configured yet."}
         </Empty>
       ) : (
         buses.map((bus) => (
-          <article key={bus.id}>
+          <article key={bus._id}>
             <h2>
               <Bus size={20} /> {bus.busId}
             </h2>
-            <p>{bus.route}</p>
+            <p>
+              {bus.from} → {bus.to}
+            </p>
             <div className="seat-grid">
               {(bus.seats || []).map((s) => (
                 <div
-                  className={`seat ${liveSeat(s) ? (s.occupancy === "available" && s.status !== "booked" ? "seat-available" : "seat-occupied") : "seat-offline"}`}
+                  className={`seat ${s.status === "booked" ? "seat-occupied" : liveSeat(s) ? (s.occupancy === "available" ? "seat-available" : "seat-occupied") : "seat-offline"}`}
                   key={s.id}
                 >
                   <Armchair size={22} />
                   <strong>Seat {s.id}</strong>
                   <span>
-                    {!liveSeat(s)
-                      ? "Sensor unavailable"
-                      : s.occupancy === "occupied"
-                        ? "Occupied"
-                        : s.status === "booked"
-                          ? "Reserved"
+                    {s.status === "booked"
+                      ? "Reserved"
+                      : !liveSeat(s)
+                        ? "Sensor unavailable"
+                        : s.occupancy === "occupied"
+                          ? "Occupied"
                           : "Available"}
                   </span>
                 </div>
               ))}
             </div>
             <p>
-              Only fresh sensor readings show occupancy. Reservations remain
-              separate from the physical seat sensors.
+              Reserved seats are unavailable to other passengers, even when
+              empty. Seat information refreshes every 10 seconds.
             </p>
           </article>
         ))
@@ -2372,9 +2375,8 @@ function Tracking({ run, refresh, passenger = false }) {
                         {
                           (b.seats || []).filter(
                             (s) =>
-                              liveSeat(s) &&
-                              (s.occupancy === "occupied" ||
-                                s.status === "booked"),
+                              s.status === "booked" ||
+                              (liveSeat(s) && s.occupancy === "occupied"),
                           ).length
                         }
                       </strong>

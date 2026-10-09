@@ -6,7 +6,7 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import Admin from "../models/Admin.js";
 import Bus from "../models/Bus.js";
 import Ticket from "../models/Ticket.js";
-import { hashPassword } from "../security.js";
+import { hashToken, hashPassword } from "../security.js";
 import { kioskSeatLayout, isPrioritySeat } from "../../shared/seatPolicy.js";
 process.env.TELEPORT_TEST_MODE = "true";
 const { app } = await import("../server.js");
@@ -110,6 +110,58 @@ test("self-service kiosk preserves priority seating, prevents duplicate booking 
     assert.equal(selfBody.categoryVerified, false);
     assert.equal(selfBody.eligibilityDeclared, true);
     assert.equal((await selfServe(3, "pwd")).status, 409);
+    const deviceKey = "isolated-device-key-for-reservation-test";
+    await Bus.updateOne(
+      { _id: bus._id },
+      { $set: { deviceTokenHash: hashToken(deviceKey) } },
+    );
+    const telemetry = await fetch(base + "/bus/seats", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${deviceKey}`,
+      },
+      body: JSON.stringify({
+        busId: bus.busId,
+        seatId: 3,
+        status: "available",
+      }),
+    });
+    assert.equal(telemetry.status, 200);
+    const monitor = await fetch(base + "/tickets/kiosk/buses");
+    const monitoredSeat = (await monitor.json())[0].seats.find(
+      (seat) => seat.id === 3,
+    );
+    assert.equal(monitoredSeat.occupancy, "available");
+    assert.equal(monitoredSeat.status, "booked");
+    assert.equal((await selfServe(3, "pwd")).status, 409);
+    // A scheduled reservation is also visible without changing physical telemetry.
+    await Ticket.create({
+      busId: bus._id,
+      tripId: new mongoose.Types.ObjectId(),
+      seatId: 5,
+      from: bus.from,
+      to: bus.to,
+      qrCode: "a".repeat(64),
+      expiresAt: new Date(Date.now() + 60000),
+    });
+    const scheduledMonitor = await fetch(base + "/tickets/kiosk/buses");
+    assert.equal(
+      (await scheduledMonitor.json())[0].seats.find((seat) => seat.id === 5)
+        .status,
+      "booked",
+    );
+    await Ticket.updateOne(
+      { qrCode: "a".repeat(64) },
+      { $set: { status: "used" } },
+    );
+    const releasedMonitor = await fetch(base + "/tickets/kiosk/buses");
+    assert.equal(
+      (await releasedMonitor.json())[0].seats.find((seat) => seat.id === 5)
+        .status,
+      "available",
+    );
+
     const verified = await fetch(base + "/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -1,3 +1,4 @@
+import { withReservationStatus } from "../reservationSeats.js";
 import express from "express";
 import crypto from "node:crypto";
 import Bus from "../models/Bus.js";
@@ -601,7 +602,7 @@ router.get("/tracking", requireAuth, async (req, res) => {
     }).select("busId");
     filter = { _id: { $in: tickets.map((t) => t.busId) } };
   }
-  const buses = await Bus.find(filter).lean();
+  const buses = await withReservationStatus(await Bus.find(filter).lean());
   res.json(
     buses.map((b) => ({
       ...proximityState(b),

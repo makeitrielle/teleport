@@ -14,6 +14,7 @@ import {
 } from "../security.js";
 import { audit } from "../models/Activity.js";
 import { canUseSeat } from "../../shared/seatPolicy.js";
+import { withReservationStatus } from "../reservationSeats.js";
 const router = express.Router();
 router.get("/", requireAuth, async (req, res) => {
   const filter =
@@ -24,12 +25,11 @@ router.get("/", requireAuth, async (req, res) => {
 });
 // Public kiosk data contains only the route and seat information needed to book.
 router.get("/kiosk/buses", async (req, res) => {
-  res.json(
-    await Bus.find()
-      .select("busId name from to totalSeats monitoredSeatIds seats")
-      .sort({ createdAt: 1 })
-      .lean(),
-  );
+  const buses = await Bus.find()
+    .select("busId name from to totalSeats monitoredSeatIds seats")
+    .sort({ createdAt: 1 })
+    .lean();
+  res.json(await withReservationStatus(buses));
 });
 router.post("/kiosk", rateLimit(20), (req, res, next) => {
   issueTicket(req, res, true).catch(next);
