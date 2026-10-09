@@ -12,6 +12,7 @@ const TicketSchema = new mongoose.Schema(
     departureAt: { type: Date, default: null },
     expiresAt: { type: Date, default: null },
     categoryVerified: { type: Boolean, default: false },
+    eligibilityDeclared: { type: Boolean, default: false },
     confirmedAt: { type: Date, default: Date.now },
     printedAt: { type: Date, default: null },
     printState: {

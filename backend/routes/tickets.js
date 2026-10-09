@@ -4,7 +4,14 @@ import Ticket from "../models/Ticket.js";
 import Bus from "../models/Bus.js";
 import Trip from "../models/Trip.js";
 import { farePointForRoute } from "../../shared/fareMatrix.js";
-import { requireAuth, requireStaff, guardId, hashToken } from "../security.js";
+import {
+  requireAuth,
+  requireStaff,
+  guardId,
+  hashToken,
+  rateLimit,
+  isObjectId,
+} from "../security.js";
 import { audit } from "../models/Activity.js";
 import { canUseSeat } from "../../shared/seatPolicy.js";
 const router = express.Router();
@@ -15,7 +22,22 @@ router.get("/", requireAuth, async (req, res) => {
   const tickets = await Ticket.find(filter).sort({ createdAt: -1 }).limit(300);
   res.json(tickets);
 });
-router.post("/", requireStaff, async (req, res) => {
+// Public kiosk data contains only the route and seat information needed to book.
+router.get("/kiosk/buses", async (req, res) => {
+  res.json(
+    await Bus.find()
+      .select("busId name from to totalSeats monitoredSeatIds seats")
+      .sort({ createdAt: 1 })
+      .lean(),
+  );
+});
+router.post("/kiosk", rateLimit(20), (req, res, next) => {
+  issueTicket(req, res, true).catch(next);
+});
+router.post("/", requireStaff, (req, res, next) => {
+  issueTicket(req, res, false).catch(next);
+});
+async function issueTicket(req, res, selfService) {
   const {
     busId,
     seatId,
@@ -32,19 +54,30 @@ router.post("/", requireStaff, async (req, res) => {
       .json({ error: "Standing reservations are no longer supported." });
   if (!["regular", "student", "pwd", "senior"].includes(passengerType))
     return res.status(400).json({ error: "Invalid passenger category." });
-  if (passengerType !== "regular" && req.body.categoryVerified !== true)
+  if (
+    passengerType !== "regular" &&
+    (selfService
+      ? req.body.eligibilityDeclared !== true
+      : req.body.categoryVerified !== true)
+  )
     return res.status(400).json({
-      error:
-        "Staff must verify discount eligibility before issuing this category.",
+      error: selfService
+        ? "Confirm your eligibility for this passenger category."
+        : "Staff must verify discount eligibility before issuing this category.",
     });
+  if (
+    !isObjectId(busId) ||
+    !Number.isInteger(Number(seatId)) ||
+    Number(seatId) < 1 ||
+    (selfService && Number(seatId) > 61)
+  )
+    return res.status(400).json({ error: "Choose a valid bus and seat." });
   const bus = await Bus.findById(busId);
   if (!bus) return res.status(404).json({ error: "Bus not found." });
   if (!canUseSeat(bus, seatId, passengerType))
-    return res
-      .status(403)
-      .json({
-        error: "First-row seats are reserved for PWD and senior passengers.",
-      });
+    return res.status(403).json({
+      error: "First-row seats are reserved for PWD and senior passengers.",
+    });
   // Keep physical walk-ups from bypassing a published scheduled seat allocation.
   if (
     await Trip.exists({
@@ -57,7 +90,11 @@ router.post("/", requireStaff, async (req, res) => {
       error:
         "This bus uses published reservations. Reserve through its scheduled trip to avoid conflicting seat allocations.",
     });
-  const fare = farePointForRoute(from || bus.from, routeTo || bus.to, to);
+  const fare = farePointForRoute(
+    selfService ? bus.from : from || bus.from,
+    selfService ? bus.to : routeTo || bus.to,
+    to,
+  );
   if (!fare || distanceKm !== fare.distanceKm)
     return res
       .status(400)
@@ -105,9 +142,13 @@ router.post("/", requireStaff, async (req, res) => {
       busId,
       seatId: Number(seatId),
       passengerType,
-      categoryVerified: req.body.categoryVerified === true,
-      from: from || bus.from,
-      routeTo: routeTo || bus.to,
+      categoryVerified: !selfService && req.body.categoryVerified === true,
+      eligibilityDeclared:
+        selfService &&
+        passengerType !== "regular" &&
+        req.body.eligibilityDeclared === true,
+      from: selfService ? bus.from : from || bus.from,
+      routeTo: selfService ? bus.to : routeTo || bus.to,
       to,
       distanceKm,
       dropoffLocation,
@@ -135,7 +176,7 @@ router.post("/", requireStaff, async (req, res) => {
       );
     throw err;
   }
-});
+}
 router.patch("/:id", requireStaff, guardId, async (req, res) => {
   if (!["used", "cancelled"].includes(req.body.status))
     return res

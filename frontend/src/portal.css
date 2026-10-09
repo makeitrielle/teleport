@@ -1545,7 +1545,7 @@ summary {
 }
 .kiosk-seat-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr 24px 1fr 1fr;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 5px 8px;
 }
 .portal.kiosk .kiosk-seat-button {
@@ -1772,4 +1772,32 @@ summary {
 .kiosk-seat-button small {
   font-size: 8px;
   line-height: 1;
+}
+
+.kiosk-bus-layout {
+  max-width: 350px;
+  padding: 12px 16px;
+}
+.kiosk-seat-layout {
+  gap: 4px;
+}
+.kiosk-seat-layout .kiosk-seat-button:nth-child(n + 56) {
+  min-width: 0;
+}
+
+.kiosk-bus-layout {
+  max-height: none;
+  overflow: visible;
+}
+.portal.kiosk .kiosk-seat-button {
+  min-height: 32px;
+  padding: 3px 1px;
+  gap: 1px;
+}
+.kiosk-seat-button svg {
+  width: 18px;
+  height: 18px;
+}
+.kiosk-seat-button span {
+  line-height: 1.1;
 }

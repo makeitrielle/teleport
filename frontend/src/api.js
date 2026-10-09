@@ -31,6 +31,8 @@ export const api = {
 
   // ---- buses (generic collection - used by the super admin dashboard) ----
   getBuses: () => request("/buses"),
+  getKioskBuses: () => request("/tickets/kiosk/buses"),
+  createKioskTicket: (data) => request("/tickets/kiosk", { method: "POST", body: JSON.stringify(data) }),
   createBus: (data) => request("/buses", { method: "POST", body: JSON.stringify(data) }),
   updateBus: (id, data) => request(`/buses/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   updateSeat: (busId, seatId, data) =>

@@ -35,7 +35,11 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { api, request } from "./api.js";
 import { FARE_MATRIX, fareDirectionForRoute } from "../../shared/fareMatrix.js";
-import { canUseSeat, isPrioritySeat } from "../../shared/seatPolicy.js";
+import {
+  canUseSeat,
+  isPrioritySeat,
+  kioskSeatLayout,
+} from "../../shared/seatPolicy.js";
 import "./portal.css";
 
 const call = (path, data, method = "POST") =>
@@ -698,12 +702,7 @@ export default function Portal() {
                   />
                 )}
                 {page === "Kiosk" && (
-                  <Kiosk
-                    staff={staff}
-                    run={run}
-                    open={setTicket}
-                    navigate={navigate}
-                  />
+                  <Kiosk run={run} open={setTicket} navigate={navigate} />
                 )}
                 {(page === "Sign in" || page === "Reset password") && (
                   <Auth
@@ -1413,20 +1412,7 @@ function Ticket({ ticket, staff, kiosk, run, notify, close, changed }) {
     </section>
   );
 }
-function Kiosk({ staff, run, open, navigate }) {
-  if (!staff)
-    return (
-      <section className="video-kiosk-flow">
-        <h1>Ticket kiosk</h1>
-        <p>This kiosk needs to be activated by staff before issuing tickets.</p>
-        <a className="primary" href="/staff/">
-          Open staff page
-        </a>
-        <button type="button" onClick={() => navigate("Kiosk")}>
-          Home
-        </button>
-      </section>
-    );
+function Kiosk({ run, open, navigate }) {
   return <Walkup run={run} open={open} close={() => navigate("Kiosk")} />;
 }
 function KioskSteps({ active }) {
@@ -1456,7 +1442,7 @@ function Walkup({ run, open, close }) {
     let live = true;
     const poll = () =>
       api
-        .getBuses()
+        .getKioskBuses()
         .then((b) => {
           if (live) {
             setBuses(b);
@@ -1522,7 +1508,7 @@ function Walkup({ run, open, close }) {
           if (!seatValid || !fare || !pointValid) return;
           setPending(true);
           run(async () => {
-            const t = await api.createTicket({
+            const t = await api.createKioskTicket({
               busId,
               seatId: Number(seat),
               from: bus.from,
@@ -1531,7 +1517,7 @@ function Walkup({ run, open, close }) {
               distanceKm: fare.distanceKm,
               dropoffLocation: point,
               passengerType: category,
-              categoryVerified: category === "regular" || verified,
+              eligibilityDeclared: category !== "regular" && verified,
             });
             open(
               await call("/verify", { reference: t.qrCode, source: "manual" }),
@@ -1574,15 +1560,23 @@ function Walkup({ run, open, close }) {
                 <Bus size={18} /> FRONT
               </div>
               <div className="kiosk-seat-layout">
-                {(bus?.seats || []).map((s, i) => {
+                {kioskSeatLayout(bus).map((s, i) => {
                   const ok = available.some((a) => a.id === s.id);
                   const priorityOnly = !canUseSeat(bus, s.id, category);
                   return (
                     <button
                       type="button"
                       key={s.id}
-                      style={{ gridColumn: (i % 4) + (i % 4 >= 2 ? 2 : 1) }}
-                      className={`kiosk-seat-button ${priorityOnly ? "priority" : !liveSeat(s) ? "offline" : !ok ? "occupied" : "available"} ${Number(seat) === s.id ? "selected" : ""}`}
+                      style={{
+                        gridRow: i < 55 ? Math.floor(i / 5) + 1 : 12,
+                        gridColumn:
+                          i < 55
+                            ? i % 5 < 3
+                              ? (i % 5) + 1
+                              : (i % 5) + 2
+                            : i - 54,
+                      }}
+                      className={`kiosk-seat-button ${priorityOnly ? "priority" : !liveSeat(s) || !bus?.monitoredSeatIds.includes(s.id) ? "offline" : !ok ? "occupied" : "available"} ${Number(seat) === s.id ? "selected" : ""}`}
                       disabled={!ok || pending}
                       aria-pressed={Number(seat) === s.id}
                       aria-label={`Seat ${s.id}${!ok ? (priorityOnly ? ", PWD and senior only" : !liveSeat(s) ? ", sensor unavailable" : ", unavailable") : ""}`}
@@ -1631,7 +1625,8 @@ function Walkup({ run, open, close }) {
                   checked={verified}
                   onChange={(e) => setVerified(e.target.checked)}
                 />
-                Staff has checked the passenger's eligibility document.
+                I confirm I qualify for this category and can present my
+                eligibility ID when boarding.
               </label>
             )}
           </>
@@ -3047,15 +3042,14 @@ function Guide() {
           account.
         </li>
         <li>
-          <strong>Create a kiosk ticket.</strong> Staff activates the kiosk from
-          the staff page. Tap Touch Screen to Begin, then choose passenger type,
-          an available seat and destination. The first row is reserved for PWD
-          and senior passengers.
+          <strong>Create a kiosk ticket.</strong> Tap Touch Screen to Begin,
+          then choose passenger type, an available seat and destination. The
+          first row is reserved for PWD and senior passengers.
         </li>
         <li>
           <strong>Review your category.</strong> Regular, Student, PWD or Senior
-          Citizen appears at the top. Discount categories require staff
-          eligibility review.
+          Citizen appears at the top. At the kiosk, confirm your eligibility and
+          bring the supporting ID when boarding.
         </li>
         <li>
           <strong>Review confirmation.</strong> Check bus, seat, destination,

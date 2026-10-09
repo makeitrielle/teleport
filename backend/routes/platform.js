@@ -60,7 +60,8 @@ function ticketView(ticket, bus, trip, passenger, publicView = false) {
         ? String(t.passengerId).slice(-6)
         : "Walk-up passenger"
       : passenger?.name || "Walk-up passenger",
-    passengerType: t.categoryVerified ? t.passengerType : "regular",
+    passengerType:
+      t.categoryVerified || t.eligibilityDeclared ? t.passengerType : "regular",
     categoryVerified: Boolean(t.categoryVerified),
     departureAt: t.departureAt || trip?.departureAt || null,
     createdAt: t.createdAt,
