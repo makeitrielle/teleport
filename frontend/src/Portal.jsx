@@ -1435,7 +1435,6 @@ function Walkup({ run, open, close }) {
     [seat, setSeat] = useState(""),
     [destination, setDestination] = useState(""),
     [category, setCategory] = useState("regular"),
-    [verified, setVerified] = useState(false),
     [point, setPoint] = useState(null),
     [pending, setPending] = useState(false),
     [step, setStep] = useState(0);
@@ -1518,7 +1517,7 @@ function Walkup({ run, open, close }) {
               distanceKm: fare.distanceKm,
               dropoffLocation: point,
               passengerType: category,
-              eligibilityDeclared: category !== "regular" && verified,
+              eligibilityDeclared: category !== "regular",
             });
             open(
               await call("/verify", { reference: t.qrCode, source: "manual" }),
@@ -1611,7 +1610,6 @@ function Walkup({ run, open, close }) {
                   onClick={() => {
                     setCategory(key);
                     setSeat("");
-                    setVerified(false);
                   }}
                 >
                   <User size={22} />
@@ -1620,15 +1618,10 @@ function Walkup({ run, open, close }) {
               ))}
             </div>
             {category !== "regular" && (
-              <label className="kiosk-eligibility">
-                <input
-                  type="checkbox"
-                  checked={verified}
-                  onChange={(e) => setVerified(e.target.checked)}
-                />
-                I confirm I qualify for this category and can present my
-                eligibility ID when boarding.
-              </label>
+              <p className="kiosk-eligibility">
+                The conductor will verify your eligibility. Please present your
+                valid ID when boarding.
+              </p>
             )}
           </>
         )}
@@ -1683,7 +1676,6 @@ function Walkup({ run, open, close }) {
             disabled={
               pending ||
               (step > 0 && !seatValid) ||
-              (category !== "regular" && !verified) ||
               (step === 2 && (!fare || !pointValid))
             }
           >
