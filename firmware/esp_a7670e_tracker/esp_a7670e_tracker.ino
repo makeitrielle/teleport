@@ -8,12 +8,9 @@
   remains enabled for its onboard GPS.
 
   REQUIRED LIBRARY:
-    TinyGSM (install via Library Manager). We talk to the A7670E
-    using the SIM7600 compatibility mode, since A7670 shares the
-    same AT command set and this avoids needing LilyGO's library
-    fork for a project this size. If you hit missing commands
-    later, switch to https://github.com/lewisxhe/TinyGSM-fork and
-    change TINY_GSM_MODEM_SIM7600 to TINY_GSM_MODEM_A7670 below.
+    LilyGO's TinyGSM fork from LilyGo-Modem-Series (not upstream TinyGSM).
+    Use the A7670 driver: its GNSS commands differ from SIM7600.
+    https://github.com/Xinyuan-LilyGO/LilyGo-Modem-Series
 
   PINS (confirmed against LilyGO's official T-A7670 quick-start —
   these are fixed by the board, don't change them):
@@ -38,12 +35,17 @@
   Fill in every value in the CONFIG block below before uploading.
 */
 
-#define TINY_GSM_MODEM_SIM7600
+#define TINY_GSM_MODEM_A7670
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+#include <time.h>
 #include <TinyGsmClient.h>
 #include <ArduinoJson.h>
+#ifndef TINY_GSM_FORK_LIBRARY
+#error "Install LilyGO TinyGSM from LilyGo-Modem-Series for the A7670 GNSS driver."
+#endif
 #include <stdlib.h>
 #include <string.h>
 
@@ -82,6 +84,10 @@ bool configureSecureClient(WiFiClientSecure& client) {
     Serial.println("Configure the device key and HTTPS CA certificate before sending telemetry.");
     return false;
   }
+  if (time(nullptr) < 1704067200) {
+    Serial.println("HTTPS waiting for network time synchronization.");
+    return false;
+  }
   client.setCACert(TELEPORT_CA_CERT);
   return true;
 }
@@ -117,6 +123,7 @@ const float DROPOFF_ALERT_RADIUS_M = 250.0;
 #define BOARD_PWRKEY_PIN   4
 #define BOARD_POWERON_PIN  12
 #define MODEM_RESET_PIN    5
+#define MODEM_DTR_PIN      25
 #define MODEM_TX_PIN       26
 #define MODEM_RX_PIN       27
 
@@ -152,6 +159,36 @@ bool requestDropoffs(String& response);
 bool acknowledgeDropoff(const String& ticketId);
 bool sendApiRequest(const char* method, const String& path, const String& jsonBody);
 
+bool modemReady = false;
+bool gpsEnabled = false;
+unsigned long lastModemAttempt = 0;
+
+void maintainGps() {
+  if (gpsEnabled) return;
+  if (millis() - lastModemAttempt < 30000) return;
+  lastModemAttempt = millis();
+  if (!modemReady) {
+    // GNSS + Wi-Fi works without a SIM. modem.init() requires a ready SIM
+    // in this library, so test the UART directly instead.
+    modemReady = modem.testAT(1000);
+    if (!modemReady) {
+      SerialMon.println("Modem not responding; check board power and modem UART pins.");
+      return;
+    }
+    modem.sendAT("E0");
+    modem.waitResponse();
+    SerialMon.println("Modem: " + modem.getModemName());
+  }
+  // T-A7670 has no separate GNSS power-enable GPIO.
+  gpsEnabled = modem.isEnableGPS() || modem.enableGPS(-1, 0);
+  if (gpsEnabled) {
+    modem.setGPSBaud(115200);
+    SerialMon.println("GPS enabled. Place the GPS antenna outdoors and wait for a fix.");
+  } else {
+    SerialMon.println("A7670 GNSS enable failed; retrying in 30 seconds. Check the modem variant supports built-in GNSS.");
+  }
+}
+
 unsigned long lastGpsCheck = 0;
 int currentStopIndex = 0;   // origin endpoint for the current direction
 bool routeDirectionSet = false;
@@ -176,30 +213,23 @@ void setup() {
   SerialAT.begin(115200, SERIAL_8N1, MODEM_RX_PIN, MODEM_TX_PIN);
   delay(3000);
 
-  SerialMon.println("Initializing modem...");
-  modem.restart();
-
-  String modemInfo = modem.getModemInfo();
-  SerialMon.print("Modem: ");
-  SerialMon.println(modemInfo);
-
+  SerialMon.println("Initializing A7670 modem...");
+  lastModemAttempt = millis() - 30000;
+  maintainGps();
   connectWifi();
-  if (modem.enableGPS()) {
-    SerialMon.println("GPS enabled, acquiring fix (can take 30-60s outdoors)...");
-  } else {
-    SerialMon.println("GPS enable command failed; check modem power, antenna and TinyGSM support.");
-  }
+
 }
 
 // ================= LOOP =================
 
 void loop() {
   maintainWifi();
+  maintainGps();
 
   unsigned long now = millis();
   if (now - lastGpsCheck >= GPS_POLL_INTERVAL_MS) {
     lastGpsCheck = now;
-    checkGpsAndUpdate();
+    if (gpsEnabled) checkGpsAndUpdate();
   }
 
   // GPS/drop-off alerts have priority over the queued seat telemetry.
@@ -213,8 +243,14 @@ void modemPowerOn() {
   digitalWrite(BOARD_POWERON_PIN, HIGH);  // keep modem powered even on battery
 
   pinMode(MODEM_RESET_PIN, OUTPUT);
-  digitalWrite(MODEM_RESET_PIN, HIGH);
+  // T-A7670 reset is active HIGH; release it LOW before using the modem.
+  digitalWrite(MODEM_RESET_PIN, LOW);
   delay(100);
+  digitalWrite(MODEM_RESET_PIN, HIGH);
+  delay(2600);
+  digitalWrite(MODEM_RESET_PIN, LOW);
+  pinMode(MODEM_DTR_PIN, OUTPUT);
+  digitalWrite(MODEM_DTR_PIN, LOW);  // keep the modem awake
 
   pinMode(BOARD_PWRKEY_PIN, OUTPUT);
   digitalWrite(BOARD_PWRKEY_PIN, LOW);
@@ -243,6 +279,7 @@ void connectWifi() {
   if (WiFi.status() == WL_CONNECTED) {
     SerialMon.print(" connected. IP: ");
     SerialMon.println(WiFi.localIP());
+    configTime(0, 0, "pool.ntp.org", "time.google.com");
   } else {
     SerialMon.println(" failed; will retry in background.");
   }
@@ -250,7 +287,14 @@ void connectWifi() {
 
 void maintainWifi() {
   if (strcmp(WIFI_SSID, "your_wifi_name") == 0) return;
-  if (WiFi.status() == WL_CONNECTED) return;
+  if (WiFi.status() == WL_CONNECTED) {
+    static bool timeRequested = false;
+    if (!timeRequested) {
+      configTime(0, 0, "pool.ntp.org", "time.google.com");
+      timeRequested = true;
+    }
+    return;
+  }
   static unsigned long lastRetry = 0;
   if (millis() - lastRetry < 10000) return;
   lastRetry = millis();
@@ -359,8 +403,8 @@ void precomputeRouteDistances() {
 }
 
 void checkGpsAndUpdate() {
-  float lat, lon, speedKmh, alt, accuracy;
-  int vsat, usat, year, month, day, hour, minute, sec;
+  float lat = NAN, lon = NAN, speedKmh = 0, alt = 0, accuracy = NAN;
+  int vsat = 0, usat = 0, year = 0, month = 0, day = 0, hour = 0, minute = 0, sec = 0;
   uint8_t fixStatus = 0;  // LilyGO's TinyGSM fork reports the fix mode first
   bool gotFix = modem.getGPS(&fixStatus, &lat, &lon, &speedKmh, &alt, &vsat, &usat, &accuracy,
                               &year, &month, &day, &hour, &minute, &sec);
@@ -558,44 +602,34 @@ bool sendApiRequest(const char* method, const String& path, const String& jsonBo
     SerialMon.println("No WiFi connection, dropping request.");
     return false;
   }
-
   WiFiClientSecure client;
-  // Use the same trusted CA and device identity for every request.
   if (!configureSecureClient(client)) return false;
-  if (!client.connect(SERVER_HOST, SERVER_PORT)) {
-    SerialMon.println("Connection to server failed.");
+  HTTPClient http;
+  http.setConnectTimeout(8000);
+  http.setTimeout(8000);
+  http.setReuse(false);
+  const String url = String("https://") + SERVER_HOST + ":" + SERVER_PORT + path;
+  if (!http.begin(client, url)) {
+    SerialMon.println("Could not initialize HTTPS request.");
     return false;
   }
-
-  client.print(String(method) + " " + path + " HTTP/1.1\r\n");
-  client.print(String("Host: ") + SERVER_HOST + "\r\n");
-  client.print(String("Authorization: Bearer ") + TELEPORT_DEVICE_KEY + "\r\n");
-  client.print("Content-Type: application/json\r\n");
-  client.print("Content-Length: " + String(jsonBody.length()) + "\r\n");
-  client.print("Connection: close\r\n\r\n");
-  client.print(jsonBody);
-
-  unsigned long start = millis();
-  String statusLine = "";
-  bool gotStatusLine = false;
-  while (client.connected() && millis() - start < 8000) {
-    while (client.available()) {
-      char c = client.read();
-      if (!gotStatusLine) {
-        if (c == '\n') {
-          gotStatusLine = true;
-        } else if (c != '\r') {
-          statusLine += c;
-        }
+  http.addHeader("Authorization", String("Bearer ") + TELEPORT_DEVICE_KEY);
+  http.addHeader("Content-Type", "application/json");
+  const int code = http.sendRequest(method, jsonBody);
+  const bool ok = code >= 200 && code < 300;
+  if (!ok) {
+    SerialMon.printf("Server response: HTTP %d\n", code);
+    if (code < 0) {
+      SerialMon.println("HTTPS transport: " + HTTPClient::errorToString(code));
+    } else {
+      // Log only the API's error field, never response credentials or bus records.
+      JsonDocument response;
+      if (!deserializeJson(response, http.getString()) && response["error"].is<const char*>()) {
+        String error = response["error"].as<String>();
+        SerialMon.println("API error: " + error.substring(0, 240));
       }
-      start = millis();
     }
   }
-  client.stop();
-
-  if (statusLine.indexOf(" 2") > 0) {
-    return true;
-  }
-  SerialMon.println("Server response: " + statusLine);
-  return false;
+  http.end();
+  return ok;
 }
