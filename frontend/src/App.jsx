@@ -1529,7 +1529,7 @@ function KioskWelcomeScreen({ onBegin }) {
         return ticket;
       } catch (err) {
         addLog(`Failed to issue ticket: ${err.message}`);
-        return null;
+        throw err;
       }
     }
 
@@ -1702,6 +1702,8 @@ function KioskOperatorPanel({ bus, log, toggleTrip, pingLocation, overrideSeat, 
 
 function KioskTicketFlow({ bus, issueTicket, onFinish }) {
   const [step, setStep] = useState("seat");
+  const [creatingTicket, setCreatingTicket] = useState(false);
+  const [ticketError, setTicketError] = useState("");
   const [seatId, setSeatId] = useState(null);
   const [standing, setStanding] = useState(false);
   const [passengerType, setPassengerType] = useState("regular");
@@ -1764,11 +1766,23 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
 
   function confirmSeat() { if (seatId || standing) setStep("passenger"); }
   async function confirmDropoff() {
-    if (!dropoffLocation || !dropoffDistanceKm) return;
-    const t = await issueTicket(seatId, dropoffName, dropoffIdx, dropoffLocation, standing, passengerType, dropoffDistanceKm, farePoints.length, routeFrom, routeTo);
-    if (!t) return; // issuing failed; stay on this step so staff can retry
-    setTicket(t);
-    setStep("ticket");
+    if (creatingTicket) return;
+    setTicketError("");
+    if (!dropoffLocation || !Number.isFinite(dropoffDistanceKm) || dropoffDistanceKm <= 0) {
+      setTicketError("Choose a valid drop-off point before creating your ticket.");
+      return;
+    }
+    setCreatingTicket(true);
+    try {
+      const t = await issueTicket(seatId, dropoffName, dropoffIdx, dropoffLocation, standing, passengerType, dropoffDistanceKm, farePoints.length, routeFrom, routeTo);
+      if (!t) throw new Error("No bus is assigned to this kiosk. Ask the operator to check the assignment.");
+      setTicket(t);
+      setStep("ticket");
+    } catch (error) {
+      setTicketError(error.message || "Could not create your ticket. Please try again.");
+    } finally {
+      setCreatingTicket(false);
+    }
   }
 
   return (
@@ -1894,6 +1908,7 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
             {farePoints.map((point, index) => <option key={point.id} value={index}>{point.label}</option>)}
           </select>
           {locationError && <div role="alert" style={{ color: C.booked, fontSize: 12, marginBottom: 8 }}>{locationError}</div>}
+          {ticketError && <div role="alert" style={{ color: C.booked, fontSize: 12, marginBottom: 8 }}>{ticketError}</div>}
           <div style={{ height: 220, borderRadius: 14, overflow: "hidden", marginBottom: 10 }}>
             {routeCoords && routeCoords.length > 1 ? <MapContainer center={routeCoords[Math.floor(routeCoords.length / 2)]} zoom={12} style={{ width: "100%", height: "100%" }}>
               <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
@@ -1911,11 +1926,11 @@ function KioskTicketFlow({ bus, issueTicket, onFinish }) {
               borderRadius: 14, padding: "13px 0", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>
               Back
             </button>
-            <button onClick={confirmDropoff} disabled={!dropoffLocation} style={{ flex: 2,
+            <button onClick={confirmDropoff} disabled={!dropoffLocation || creatingTicket} style={{ flex: 2,
               background: dropoffLocation ? C.orange : C.panel2, border: "none", color: "#fff", borderRadius: 14,
               padding: "13px 0", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 14.5,
               cursor: dropoffLocation ? "pointer" : "not-allowed" }}>
-              Create ticket
+              {creatingTicket ? "Creating ticket…" : "Create ticket"}
             </button>
           </div>
         </div>
