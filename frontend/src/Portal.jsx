@@ -611,7 +611,7 @@ export default function Portal() {
             {notice}
           </div>
         )}
-        {busy && (
+        {busy && !["Sign in", "Reset password"].includes(page) && (
           <div className="loading" role="status">
             Working…
           </div>
@@ -1716,6 +1716,18 @@ function Auth({ run, notify, loggedIn, reset, staffOnly = false }) {
     [pending, setPending] = useState(false);
   return (
     <div className="authLayout">
+      {pending && (
+        <div className="auth-loading-overlay" role="status" aria-live="polite">
+          <div className="auth-loading-card">
+            <span className="auth-loading-spinner" aria-hidden="true" />
+            <strong>
+              {["login", "staff"].includes(mode)
+                ? "Signing in…"
+                : "Please wait…"}
+            </strong>
+          </div>
+        </div>
+      )}
       <section className="authIntro">
         <div className="authBrand">TELE-PORT</div>
         <h1>
