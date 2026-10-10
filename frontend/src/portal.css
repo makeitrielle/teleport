@@ -1055,6 +1055,61 @@ footer {
   font-family: "Baloo 2", ui-rounded, system-ui, sans-serif;
   font-size: 18px;
 }
+.passenger-back-label {
+  display: none;
+}
+@media (max-width: 1023px) {
+  .passenger-app > header {
+    position: sticky;
+    top: 0;
+    z-index: 1100;
+    min-height: 76px;
+    padding: calc(12px + env(safe-area-inset-top))
+      max(16px, env(safe-area-inset-right)) 14px
+      max(16px, env(safe-area-inset-left));
+    border-radius: 0 0 22px 22px;
+    box-shadow: 0 4px 14px rgba(70, 32, 14, 0.22);
+  }
+  .passenger-app > header .original-logo strong {
+    color: #fff;
+    text-shadow: none;
+  }
+  .passenger-app .passenger-page-heading {
+    width: 100%;
+    gap: 16px;
+  }
+  .passenger-app .passenger-page-heading strong {
+    min-width: 0;
+    font-size: 20px;
+    line-height: 1.3;
+    color: #fff;
+  }
+  .passenger-app .passenger-page-heading button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: auto;
+    min-width: 96px;
+    height: 48px;
+    min-height: 48px;
+    flex-shrink: 0;
+    padding: 10px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 14px;
+    background: #fff7ed;
+    color: #98451f;
+    font-size: 16px;
+    font-weight: 800;
+    touch-action: manipulation;
+  }
+  .passenger-app .passenger-page-heading button:active {
+    background: #ead3af;
+  }
+  .passenger-back-label {
+    display: inline;
+  }
+}
 .passenger-app .passengerHeroTitle {
   font-family: "Plus Jakarta Sans", system-ui, sans-serif;
 }

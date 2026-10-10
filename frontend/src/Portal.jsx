@@ -731,10 +731,12 @@ export default function Portal() {
         ].includes(page) ? (
           <div className="passenger-page-heading">
             <button
+              type="button"
               aria-label="Back to home"
               onClick={() => navigate("Dashboard")}
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft size={24} aria-hidden="true" />
+              <span className="passenger-back-label">Back</span>
             </button>
             <strong>{page === "Bus Tracking" ? "Live map" : page}</strong>
           </div>
