@@ -19,6 +19,7 @@ import Notification from "../models/Notification.js";
 import { Activity } from "../models/Activity.js";
 import { proximityState, haversineMeters } from "../../shared/proximity.js";
 import { attachPrintAgent } from "../printAgent.js";
+import { removeLegacyPhoneUniqueness } from "../db.js";
 
 process.env.TELEPORT_TEST_MODE = "true";
 process.env.ALLOWED_ORIGINS = "http://localhost:5173";
@@ -284,6 +285,31 @@ test("registration, email verification and password reset use hashed one-time to
     delete process.env.EMAIL_FROM;
   }
 });
+test("legacy phone migration allows empty phones while preserving email uniqueness", async () => {
+  const collection = mongoose.connection.db.collection(
+    "phone-index-migration-test",
+  );
+  try {
+    await collection.createIndex({ phone: 1 }, { unique: true });
+    await collection.createIndex({ email: 1 }, { unique: true });
+    await collection.insertOne({ email: "first@example.invalid", phone: "" });
+    await assert.rejects(
+      collection.insertOne({ email: "second@example.invalid", phone: "" }),
+      { code: 11000 },
+    );
+    await removeLegacyPhoneUniqueness(collection);
+    await removeLegacyPhoneUniqueness(collection);
+    await collection.insertOne({ email: "second@example.invalid", phone: "" });
+    await assert.rejects(
+      collection.insertOne({ email: "first@example.invalid", phone: "123" }),
+      { code: 11000 },
+    );
+    assert.equal(await collection.countDocuments(), 2);
+  } finally {
+    await collection.drop();
+  }
+});
+
 test("registration duplicate indexes report account errors instead of seat errors", async () => {
   const originalCreate = Passenger.create;
   try {

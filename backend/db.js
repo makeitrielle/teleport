@@ -2,6 +2,31 @@ import mongoose from "mongoose";
 import Passenger from "./models/Passenger.js";
 import Ticket from "./models/Ticket.js";
 
+export async function removeLegacyPhoneUniqueness(
+  collection = Passenger.collection,
+) {
+  const indexes = await collection
+    .indexes()
+    .catch((err) => (err.code === 26 ? [] : Promise.reject(err)));
+  // Phone is optional and is not an account identifier. Older deployments
+  // made it unique, so the default empty string blocked every later signup.
+  for (const index of indexes) {
+    if (
+      index.unique &&
+      Object.keys(index.key).length === 1 &&
+      index.key.phone
+    ) {
+      try {
+        await collection.dropIndex(index.name);
+        console.log("[db] removed obsolete unique phone index:", index.name);
+      } catch (err) {
+        // Another backend instance may already have completed this migration.
+        if (err.code !== 27) throw err;
+      }
+    }
+  }
+}
+
 export async function connectDB() {
   const uri = process.env.MONGODB_URI;
   if (!uri) {
@@ -10,6 +35,7 @@ export async function connectDB() {
     );
   }
   await mongoose.connect(uri);
+  await removeLegacyPhoneUniqueness();
   // Booking must never open before its database uniqueness constraint exists.
   await Ticket.init();
   await Ticket.collection.createIndex(
