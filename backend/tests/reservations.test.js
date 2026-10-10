@@ -479,39 +479,85 @@ test("passenger cannot change another account or self-approve a discount", async
   });
   assert.equal((await Passenger.findById(other._id)).categoryVerified, false);
 });
-test("reservation uses authenticated owner, verified category and database fare without payment method", async () => {
-  const r = await http("/reservations", {
-    data: {
-      tripId: String(trip._id),
-      seatId: 1,
-      to: "Longos",
-      passengerId: String(other._id),
-      fare: 1,
-      passengerType: "senior",
-    },
+async function scheduledTicketFixture(seatId, auth = cookie) {
+  const saved = await Ticket.create({
+    busId: bus._id,
+    tripId: trip._id,
+    seatId,
+    from: trip.from,
+    routeTo: trip.to,
+    to: "Longos",
+    fare: 28,
+    passengerType: "pwd",
+    categoryVerified: true,
+    qrCode: hashToken(
+      `scheduled-fixture-${seatId}-${Date.now()}-${Math.random()}`,
+    ),
+    bookingReference: `TEST-${seatId}-${Date.now()}`,
+    departureAt: trip.departureAt,
+    expiresAt: trip.arrivalAt,
   });
-  assert.equal(r.status, 201, JSON.stringify(r.body));
+  return http("/connect-ticket", {
+    cookie: auth,
+    data: { reference: saved.qrCode },
+  });
+}
+
+test("passengers cannot book in the app; scanning connects an existing ticket without changing fare or seat", async () => {
+  const blocked = await http("/reservations", {
+    data: { tripId: String(trip._id), seatId: 1, to: "Longos" },
+  });
+  assert.equal(blocked.status, 403);
+  assert.match(blocked.body.error, /kiosk only/);
+  assert.equal(await Ticket.countDocuments({ tripId: trip._id }), 0);
+  const r = await scheduledTicketFixture(1);
+  assert.equal(r.status, 200);
   ticket = r.body;
   assert.equal(ticket.passengerType, "pwd");
   assert.equal(ticket.fare, 28);
+  assert.equal(ticket.seatId, 1);
   assert.equal(ticket.status, "confirmed");
   assert.equal(
     String((await Ticket.findById(ticket.id)).passengerId),
     String(passenger._id),
   );
   assert.equal(ticket.qrCode.length, 64);
+  assert.equal(
+    (await http("/connect-ticket", { data: { reference: ticket.qrCode } }))
+      .status,
+    200,
+  );
+  assert.equal(
+    (
+      await http("/connect-ticket", {
+        cookie: otherCookie,
+        data: { reference: ticket.qrCode },
+      })
+    ).status,
+    409,
+  );
 });
-test("concurrent booking cannot allocate the same seat twice", async () => {
-  const results = await Promise.all([
-    http("/reservations", {
-      data: { tripId: String(trip._id), seatId: 2, to: "Longos" },
-    }),
-    http("/reservations", {
-      data: { tripId: String(trip._id), seatId: 2, to: "Longos" },
-      cookie: otherCookie,
-    }),
-  ]);
-  assert.deepEqual(results.map((r) => r.status).sort(), [201, 409]);
+
+test("concurrent QR claims cannot connect one ticket to two passengers", async () => {
+  const saved = await Ticket.create({
+    busId: bus._id,
+    tripId: trip._id,
+    seatId: 2,
+    from: trip.from,
+    to: "Longos",
+    fare: 35,
+    qrCode: hashToken("concurrent-qr-claim"),
+    expiresAt: trip.arrivalAt,
+  });
+  const results = await Promise.all(
+    [cookie, otherCookie].map((auth) =>
+      http("/connect-ticket", {
+        cookie: auth,
+        data: { reference: saved.qrCode },
+      }),
+    ),
+  );
+  assert.deepEqual(results.map((r) => r.status).sort(), [200, 409]);
   assert.equal(
     await Ticket.countDocuments({
       tripId: trip._id,
@@ -520,7 +566,56 @@ test("concurrent booking cannot allocate the same seat twice", async () => {
     }),
     1,
   );
+  await assert.rejects(
+    Ticket.create({
+      busId: bus._id,
+      tripId: trip._id,
+      seatId: 2,
+      from: trip.from,
+      to: "Longos",
+      qrCode: hashToken("duplicate-seat"),
+    }),
+    { code: 11000 },
+  );
 });
+
+test("ticket connection rejects missing authentication, invalid tokens and expired tickets", async () => {
+  assert.equal(
+    (
+      await http("/connect-ticket", {
+        cookie: null,
+        data: { reference: hashToken("no-auth") },
+      })
+    ).status,
+    401,
+  );
+  assert.equal(
+    (await http("/connect-ticket", { data: { reference: "invalid" } })).status,
+    400,
+  );
+  assert.equal(
+    (
+      await http("/connect-ticket", {
+        data: { reference: hashToken("missing-qr") },
+      })
+    ).status,
+    404,
+  );
+  const expired = await Ticket.create({
+    busId: bus._id,
+    from: bus.from,
+    to: bus.to,
+    qrCode: hashToken("expired-connect"),
+    expiresAt: new Date(Date.now() - 1000),
+  });
+  assert.equal(
+    (await http("/connect-ticket", { data: { reference: expired.qrCode } }))
+      .status,
+    409,
+  );
+  assert.equal((await Ticket.findById(expired._id)).passengerId, null);
+});
+
 test("bookings and cancellations are private to their account", async () => {
   const r = await http("/reservations", { cookie: otherCookie });
   assert.ok(r.body.every((t) => t.id !== ticket.id));
@@ -868,20 +963,15 @@ test("staff account administration revokes sessions and preserves the last admin
   );
 });
 test("cancellation releases a scheduled seat while preserving the historical ticket", async () => {
-  const r = await http("/reservations", {
-    data: { tripId: String(trip._id), seatId: 4, to: "Longos" },
-  });
-  assert.equal(r.status, 201);
+  const r = await scheduledTicketFixture(4);
+  assert.equal(r.status, 200);
   assert.equal(
     (await http(`/reservations/${r.body.id}/cancel`, { data: {} })).status,
     200,
   );
   assert.equal((await Ticket.findById(r.body.id)).status, "cancelled");
-  const next = await http("/reservations", {
-    cookie: otherCookie,
-    data: { tripId: String(trip._id), seatId: 4, to: "Longos" },
-  });
-  assert.equal(next.status, 201);
+  const next = await scheduledTicketFixture(4, otherCookie);
+  assert.equal(next.status, 200);
   assert.notEqual(next.body.id, r.body.id);
 });
 test("uncertain receipt resolution requires staff and retains the booking", async () => {
@@ -917,19 +1007,17 @@ test("uncertain receipt resolution requires staff and retains the booking", asyn
   );
   assert.equal((await Ticket.findById(ticket.id)).status, "active");
 });
-test("legacy entry imports the same app; walk-up locks require fresh physical availability", async () => {
-  const legacy = await import("../../back/server.js");
-  assert.equal(legacy.app, app);
+test("walk-up locks require fresh physical availability", async () => {
   const third = await Bus.create({
     busId: "TEST-BUS-3",
     name: "Third test bus",
     from: "SM Pala-Pala",
     to: "PITX",
-    totalSeats: 1,
-    monitoredSeatIds: [1],
+    totalSeats: 6,
+    monitoredSeatIds: [6],
     seats: [
       {
-        id: 1,
+        id: 6,
         sensor: "ok",
         occupancy: "available",
         status: "available",
@@ -939,7 +1027,7 @@ test("legacy entry imports the same app; walk-up locks require fresh physical av
   });
   const data = {
     busId: String(third._id),
-    seatId: 1,
+    seatId: 6,
     from: third.from,
     routeTo: third.to,
     to: "PITX",
@@ -948,15 +1036,25 @@ test("legacy entry imports the same app; walk-up locks require fresh physical av
     passengerType: "regular",
   };
   assert.equal((await http("/tickets", { data })).status, 403);
-  const issued = await http("/tickets", { cookie: adminCookie, data });
-  assert.equal(issued.status, 201);
+  const issued = await http("/tickets/kiosk", { cookie: null, data });
+  assert.equal(issued.status, 201, JSON.stringify(issued.body));
+  const connected = await http("/connect-ticket", {
+    data: { reference: issued.body.qrCode },
+  });
+  assert.equal(connected.status, 200);
+  assert.equal(connected.body.seatId, 6);
+  assert.equal(connected.body.fare, issued.body.fare);
+  assert.equal(
+    String((await Ticket.findById(issued.body._id)).passengerId),
+    String(passenger._id),
+  );
   assert.equal(
     (await http("/tickets", { cookie: adminCookie, data })).status,
     409,
   );
   assert.equal(
     (
-      await http(`/buses/${third._id}/seats/1`, {
+      await http(`/buses/${third._id}/seats/6`, {
         cookie: adminCookie,
         method: "PATCH",
         data: { status: "available" },

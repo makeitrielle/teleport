@@ -24,7 +24,6 @@ import {
   proximityState,
   gpsOnline,
 } from "../../shared/proximity.js";
-import { farePointForRoute } from "../../shared/fareMatrix.js";
 
 const router = express.Router();
 export function reservationIsEligible(ticket, now = Date.now()) {
@@ -286,90 +285,64 @@ router.get("/reservations", requireAuth, async (req, res) => {
     .populate("passengerId", "name");
   res.json(tickets.map((t) => ticketView(t, t.busId, t.tripId, t.passengerId)));
 });
-router.post("/reservations", requireAuth, rateLimit(20), async (req, res) => {
-  const { tripId, seatId, to, dropoffLocation } = req.body;
+router.post("/reservations", requireAuth, (req, res) => {
+  res.status(403).json({
+    error:
+      "Seat reservations are available at the kiosk only. Scan your kiosk ticket in the passenger app.",
+  });
+});
+router.post("/connect-ticket", requireAuth, rateLimit(20), async (req, res) => {
+  if (req.auth.role !== "passenger")
+    return res
+      .status(403)
+      .json({ error: "Sign in to a passenger account to connect a ticket." });
+  const { reference } = req.body;
   if (
-    dropoffLocation &&
-    !validCoordinates(dropoffLocation.lat, dropoffLocation.lon)
+    typeof reference !== "string" ||
+    !/^([a-f\d]{64}|[a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12})$/i.test(reference)
   )
     return res
       .status(400)
-      .json({ error: "Choose valid numeric drop-off coordinates." });
-  if (req.auth.role !== "passenger")
-    return res.status(403).json({
-      error: "Sign in to the passenger account to make a reservation.",
-    });
-  const passenger = await Passenger.findById(req.auth.userId);
-  if (!passenger)
-    return res.status(401).json({ error: "Passenger account unavailable." });
-  const trip = await Trip.findById(tripId);
-  if (
-    !trip ||
-    !["scheduled", "boarding"].includes(trip.status) ||
-    trip.departureAt <= new Date()
-  )
+      .json({ error: "Scan a valid kiosk ticket QR code." });
+  const ticket = await Ticket.findOne({ qrCode: reference });
+  if (!ticket) return res.status(404).json({ error: "Ticket not found." });
+  if (!reservationIsEligible(ticket))
     return res
       .status(409)
-      .json({ error: "This trip is unavailable for reservation." });
-  if (!Number.isInteger(seatId) || !trip.seatIds.includes(seatId))
-    return res
-      .status(400)
-      .json({ error: "Choose a reservable seat from this trip." });
-  const fare = farePointForRoute(trip.from, trip.to, to);
-  if (!fare)
-    return res.status(400).json({
-      error: "Select a destination from the configured route fare matrix.",
-    });
-  const bus = await Bus.findById(trip.busId);
-  if (!bus)
-    return res.status(409).json({ error: "The assigned bus is unavailable." });
-  const passengerType = passenger.categoryVerified
-    ? passenger.category
-    : "regular";
-  const printToken = crypto.randomBytes(32).toString("hex");
-  const ticket = await Ticket.create({
-    busId: bus._id,
-    tripId: trip._id,
-    passengerId: passenger._id,
-    seatId,
-    standing: false,
-    passengerType,
-    categoryVerified: passenger.categoryVerified,
-    from: trip.from,
-    routeTo: trip.to,
-    to,
-    distanceKm: fare.distanceKm,
-    dropoffLocation: dropoffLocation || undefined,
-    fare: passengerType === "regular" ? fare.regular : fare.discounted,
-    qrCode: crypto.randomBytes(32).toString("hex"),
-    bookingReference: `SM-${crypto.randomBytes(8).toString("hex").toUpperCase()}`,
-    printTokenHash: hashToken(printToken),
-    departureAt: trip.departureAt,
-    expiresAt:
-      trip.arrivalAt ||
-      new Date(
-        trip.departureAt.getTime() +
-          ((trip.durationMinutes || 1440) + 120) * 60000,
-      ),
-  });
-  // A schedule cancellation racing ticket insertion must not leave an active booking.
-  const current = await Trip.findById(trip._id);
-  if (!current || !["scheduled", "boarding"].includes(current.status)) {
-    ticket.status = "cancelled";
-    await ticket.save();
+      .json({ error: "This ticket is cancelled, completed, or expired." });
+  const [bus, trip, passenger] = await Promise.all([
+    Bus.findById(ticket.busId),
+    ticket.tripId ? Trip.findById(ticket.tripId) : null,
+    Passenger.findById(req.auth.userId),
+  ]);
+  if (!passenger)
+    return res.status(401).json({ error: "Passenger account unavailable." });
+  if (trip && ["cancelled", "completed"].includes(trip.status))
+    return res.status(409).json({ error: "The trip is no longer eligible." });
+  const connected = await Ticket.findOneAndUpdate(
+    {
+      _id: ticket._id,
+      status: "active",
+      passengerId: { $in: [null, req.auth.userId] },
+      $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
+    },
+    { $set: { passengerId: req.auth.userId } },
+    { new: true },
+  );
+  if (!connected)
     return res.status(409).json({
       error:
-        "The trip changed before confirmation. Your booking was cancelled.",
+        "This ticket is unavailable or already connected to another account.",
     });
-  }
-  await audit(req, "reservation.created", "success", {
-    ticketId: ticket._id,
-    tripId: trip._id,
-    reference: ticket.bookingReference,
-    busId: bus._id,
+  await audit(req, "ticket.connected", "success", {
+    ticketId: connected._id,
+    passengerId: passenger._id,
+    busId: connected.busId,
+    reference: connected.bookingReference,
   });
-  res.status(201).json(ticketView(ticket, bus, trip, passenger));
+  res.json(ticketView(connected, bus, trip, passenger));
 });
+
 router.post(
   "/reservations/:id/cancel",
   requireAuth,

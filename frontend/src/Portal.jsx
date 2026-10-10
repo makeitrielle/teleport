@@ -227,7 +227,7 @@ function TravelWelcome({ name, navigate }) {
           [
             TicketIcon,
             "MY TICKET",
-            "View your trip details",
+            "Scan the QR code from your kiosk ticket",
             "Tickets",
             "tickets",
           ],
@@ -474,7 +474,6 @@ export default function Portal() {
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
     [ticket, setTicket] = useState(null),
-    [trip, setTrip] = useState(null),
     [refresh, setRefresh] = useState(0);
   const bootstrapped = useRef(false);
   const [theme, setTheme] = useState(
@@ -512,7 +511,6 @@ export default function Portal() {
       if (e.status === 401 && session) {
         setSession(null);
         setTicket(null);
-        setTrip(null);
         setPage(kiosk ? "Kiosk" : "Sign in");
       }
       setError(
@@ -560,7 +558,13 @@ export default function Portal() {
       if (params.get("reset")) setPage("Reset password");
       const reference = params.get("ticket");
       if (reference && !kiosk) {
-        const t = await call("/verify", { reference, source: "qr" });
+        if (current.role !== "passenger" || !current.user) {
+          setNotice(
+            "Sign in, then scan your kiosk ticket to connect it to your account.",
+          );
+          return;
+        }
+        const t = await call("/connect-ticket", { reference });
         setTicket(t);
         history.replaceState(null, "", entryPath);
       }
@@ -615,7 +619,6 @@ export default function Portal() {
           if (live && e.status === 401) {
             setSession(null);
             setTicket(null);
-            setTrip(null);
             setPage(kiosk ? "Kiosk" : "Sign in");
             setError(
               "Your session has expired or was not saved. Please sign in again.",
@@ -636,7 +639,6 @@ export default function Portal() {
     }
     setPage(p);
     setTicket(null);
-    setTrip(null);
     setError("");
     setNotice("");
     if (kiosk && p === "Kiosk") setKioskStarted(false);
@@ -860,18 +862,6 @@ export default function Portal() {
                 }}
                 changed={changed}
               />
-            ) : trip ? (
-              <Booking
-                trip={trip}
-                session={session}
-                run={run}
-                close={() => setTrip(null)}
-                confirmed={(t) => {
-                  setTrip(null);
-                  setTicket(t);
-                  changed();
-                }}
-              />
             ) : (
               <>
                 {page === "Dashboard" && (
@@ -883,16 +873,7 @@ export default function Portal() {
                 {(page === "Trip Schedule" ||
                   (page === "Dashboard" && !passengerUI)) &&
                   !staffPage && (
-                    <Schedules
-                      session={session}
-                      refresh={refresh}
-                      run={run}
-                      choose={(t) =>
-                        session?.role === "passenger"
-                          ? setTrip(t)
-                          : navigate("Sign in")
-                      }
-                    />
+                    <Schedules session={session} refresh={refresh} run={run} />
                   )}
                 {page === "Trip Schedule" && staffPage && staff && (
                   <Management
@@ -935,12 +916,24 @@ export default function Portal() {
                   </>
                 )}
                 {(page === "My Bookings" || page === "Tickets") && (
-                  <Bookings
-                    session={session}
-                    refresh={refresh}
-                    run={run}
-                    open={setTicket}
-                  />
+                  <>
+                    {passengerUI && (
+                      <TicketScanner
+                        session={session}
+                        run={run}
+                        connected={(t) => {
+                          setTicket(t);
+                          changed();
+                        }}
+                      />
+                    )}
+                    <Bookings
+                      session={session}
+                      refresh={refresh}
+                      run={run}
+                      open={setTicket}
+                    />
+                  </>
                 )}
                 {page === "Kiosk" && (
                   <Kiosk run={run} open={setTicket} navigate={navigate} />
@@ -957,6 +950,17 @@ export default function Portal() {
                         throw new Error(
                           "Your browser did not save the sign-in session. The website must use its /api proxy; please try again after redeployment.",
                         );
+                      }
+                      const reference = new URLSearchParams(
+                        location.search,
+                      ).get("ticket");
+                      if (s.role === "passenger" && reference) {
+                        const connected = await call("/connect-ticket", {
+                          reference,
+                        });
+                        setTicket(connected);
+                        changed();
+                        history.replaceState(null, "", entryPath);
                       }
                       navigate(
                         s.role === "passenger" ? "Dashboard" : "Trip Schedule",
@@ -975,36 +979,28 @@ export default function Portal() {
                         install={install}
                         appInstalled={appInstalled}
                         installed={() => setInstall(null)}
-                        savePhoto={(photo) =>
-                          run(async () => {
-                            await call(
-                              `/passengers/${session.user._id}`,
-                              { profilePhoto: photo },
-                              "PATCH",
-                            );
-                            await loadSession();
-                            setNotice("Profile photo updated.");
-                          })
-                        }
-                        photoError={setError}
                       />
                     )}
-                    <details
-                      className={passengerUI ? "profile-edit" : "staff-account"}
-                      open={!passengerUI}
-                    >
-                      <summary>Edit account details</summary>
-                      <Account
-                        session={session}
-                        run={run}
-                        saved={async () => {
-                          await loadSession();
-                          setNotice(
-                            "Account updated. Discount categories require staff verification.",
-                          );
-                        }}
-                      />
-                    </details>
+                    {!passengerUI && (
+                      <details
+                        className={
+                          passengerUI ? "profile-edit" : "staff-account"
+                        }
+                        open={!passengerUI}
+                      >
+                        <summary>Edit account details</summary>
+                        <Account
+                          session={session}
+                          run={run}
+                          saved={async () => {
+                            await loadSession();
+                            setNotice(
+                              "Account updated. Discount categories require staff verification.",
+                            );
+                          }}
+                        />
+                      </details>
+                    )}
                   </>
                 )}
                 {page === "Activity History" && (
@@ -1040,6 +1036,39 @@ export default function Portal() {
                 {page === "Settings" && (
                   <section>
                     <h1>Settings</h1>
+                    {passengerUI && session?.role === "passenger" && (
+                      <>
+                        <ProfilePhotoSettings
+                          user={session.user}
+                          busy={busy}
+                          savePhoto={(photo) =>
+                            run(async () => {
+                              await call(
+                                `/passengers/${session.user._id}`,
+                                { profilePhoto: photo },
+                                "PATCH",
+                              );
+                              await loadSession();
+                              setNotice("Profile photo updated.");
+                            })
+                          }
+                          photoError={setError}
+                        />
+                        <details className="profile-edit" open>
+                          <summary>Edit account details</summary>
+                          <Account
+                            session={session}
+                            run={run}
+                            saved={async () => {
+                              await loadSession();
+                              setNotice(
+                                "Account updated. Discount categories require staff verification.",
+                              );
+                            }}
+                          />
+                        </details>
+                      </>
+                    )}
                     <Field label="Color theme">
                       <select
                         value={theme}
@@ -1105,7 +1134,7 @@ export default function Portal() {
   );
 }
 
-function Schedules({ session, refresh, run, choose }) {
+function Schedules({ refresh, run }) {
   const [selectedDate, setDate] = useState(day),
     [items, setItems] = useState(null),
     [search, setSearch] = useState("");
@@ -1134,8 +1163,10 @@ function Schedules({ session, refresh, run, choose }) {
       <div className="section-title">
         <div>
           <p className="eyebrow">Plan your journey</p>
-          <h1>Trip schedule & booking</h1>
-          <p>Choose a published trip to reserve a seat.</p>
+          <h1>Trip schedule</h1>
+          <p>
+            View routes and departure times. Reserve your seat at the kiosk.
+          </p>
         </div>
         <Field
           label="Trip date"
@@ -1155,7 +1186,7 @@ function Schedules({ session, refresh, run, choose }) {
       ) : !visible.length ? (
         <Empty>
           No published trips match this date and search. Staff must configure
-          schedules before seats can be reserved.
+          schedules before trips appear here.
         </Empty>
       ) : (
         <div className="grid">
@@ -1197,19 +1228,6 @@ function Schedules({ session, refresh, run, choose }) {
                     seats
                   </dd>
                 </dl>
-                <button
-                  className="primary"
-                  disabled={
-                    !t.reservationOpen ||
-                    !t.availableSeatIds.length ||
-                    (session && session.role !== "passenger")
-                  }
-                  onClick={() => choose(t)}
-                >
-                  {session?.role === "passenger"
-                    ? "Book this trip"
-                    : "Passenger sign-in to book"}
-                </button>
               </article>
             );
           })}
@@ -1218,78 +1236,116 @@ function Schedules({ session, refresh, run, choose }) {
     </section>
   );
 }
-function Booking({ trip, session, run, close, confirmed }) {
-  const options = FARE_MATRIX[fareDirectionForRoute(trip.from, trip.to)] || [];
-  const [seat, setSeat] = useState(""),
-    [destination, setDestination] = useState(""),
-    [pending, setPending] = useState(false);
-  const [pointLocation, setPointLocation] = useState(null);
-  const point = options.find((p) => p.landmark === destination);
-  const discounted =
-    session.user.categoryVerified && session.user.category !== "regular";
+function TicketScanner({ session, run, connected }) {
+  const [cameraOn, setCameraOn] = useState(false);
+  const [reference, setReference] = useState("");
+  const [cameraError, setCameraError] = useState("");
+  const [pending, setPending] = useState(false);
+  const video = useRef(null);
+  const connectRef = useRef(null);
+  const connect = async (value) => {
+    setCameraOn(false);
+    setPending(true);
+    await run(async () => {
+      let code = value.trim();
+      try {
+        code = new URL(code).searchParams.get("ticket") || code;
+      } catch {
+        /* Raw QR token. */
+      }
+      const ticket = await call("/connect-ticket", { reference: code });
+      connected(ticket);
+    });
+    setPending(false);
+  };
+  connectRef.current = connect;
+  useEffect(() => {
+    if (!cameraOn) return;
+    let stopped = false,
+      controls;
+    const start = async () => {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia)
+          throw new Error("Open the app over HTTPS and allow camera access.");
+        const { BrowserQRCodeReader } = await import("@zxing/browser");
+        if (stopped) return;
+        controls = await new BrowserQRCodeReader().decodeFromConstraints(
+          { audio: false, video: { facingMode: { ideal: "environment" } } },
+          video.current,
+          (result) => {
+            if (!result || stopped) return;
+            stopped = true;
+            controls?.stop();
+            connectRef.current(result.getText());
+          },
+        );
+        if (stopped) controls.stop();
+      } catch (error) {
+        if (!stopped) {
+          setCameraError(
+            error.name === "NotAllowedError"
+              ? "Allow camera access in your browser settings, then try again."
+              : error.message,
+          );
+          setCameraOn(false);
+        }
+      }
+    };
+    start();
+    return () => {
+      stopped = true;
+      controls?.stop();
+    };
+  }, [cameraOn]);
+  if (session?.role !== "passenger")
+    return <Empty>Sign in to connect your kiosk ticket.</Empty>;
   return (
-    <section>
-      <button onClick={close}>← Back to schedules</button>
-      <h1>Reserve your seat</h1>
+    <section className="ticket-scanner">
+      <h1>Connect your kiosk ticket</h1>
       <p>
-        {trip.busId?.busId} · {trip.from} → {trip.to} · {date(trip.departureAt)}
+        Scan the printed QR code to save your ticket and follow your trip. Seats
+        are reserved at the kiosk.
       </p>
-      <p>
-        Passenger: {session.user.name} ·{" "}
-        {categories[discounted ? session.user.category : "regular"]}
-      </p>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          setPending(true);
-          run(async () =>
-            confirmed(
-              await call("/reservations", {
-                tripId: trip._id,
-                seatId: Number(seat),
-                to: destination,
-                dropoffLocation: pointLocation,
-              }),
-            ),
-          ).finally(() => setPending(false));
+      {cameraError && <p role="alert">{cameraError}</p>}
+      {cameraOn && (
+        <video
+          ref={video}
+          autoPlay
+          muted
+          playsInline
+          style={{ width: "100%", maxWidth: 420, borderRadius: 16 }}
+        />
+      )}
+      <button
+        type="button"
+        className="primary"
+        disabled={pending}
+        onClick={() => {
+          setCameraError("");
+          setCameraOn(!cameraOn);
         }}
       >
-        <Field label="Destination">
-          <select
+        {cameraOn ? "Stop scanner" : "Scan ticket QR code"}
+      </button>
+      <details>
+        <summary>Enter ticket number instead</summary>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            connect(reference);
+          }}
+        >
+          <Field
+            label="Complete ticket number"
             required
-            value={destination}
-            onChange={(e) => setDestination(e.target.value)}
-          >
-            <option value="">Choose a destination</option>
-            {options.map((p) => (
-              <option key={p.landmark}>{p.landmark}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Seat">
-          <select
-            required
-            value={seat}
-            onChange={(e) => setSeat(e.target.value)}
-          >
-            <option value="">Choose an available seat</option>
-            {trip.availableSeatIds.map((id) => (
-              <option key={id} value={id}>
-                Seat {id}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Dropoff point={pointLocation} setPoint={setPointLocation} />
-        {point && (
-          <p className="fare">
-            Fare: ₱{discounted ? point.discounted : point.regular}
-          </p>
-        )}
-        <button className="primary" disabled={pending || !point}>
-          {pending ? "Saving reservation…" : "Confirm reservation"}
-        </button>
-      </form>
+            value={reference}
+            onChange={(event) => setReference(event.target.value)}
+          />
+          <button disabled={pending}>
+            {pending ? "Connecting…" : "Connect ticket"}
+          </button>
+        </form>
+      </details>
     </section>
   );
 }
@@ -1301,7 +1357,7 @@ function Bookings({ session, refresh, run, open, summary = false }) {
   useEffect(() => {
     if (session) run(async () => setItems(await request("/reservations")));
   }, [session, refresh]);
-  if (!session) return <Empty>Sign in to see your bookings.</Empty>;
+  if (!session) return <Empty>Sign in to see your tickets.</Empty>;
   let rows = (items || []).filter(
     (t) =>
       (!status || t.status === status) &&
@@ -1316,7 +1372,7 @@ function Bookings({ session, refresh, run, open, summary = false }) {
     );
   return (
     <section>
-      <h1>{summary ? "Upcoming reservations" : "Reservations & tickets"}</h1>
+      <h1>{summary ? "Upcoming reservations" : "Connected tickets"}</h1>
       {!summary && (
         <div className="filters">
           <Field
@@ -1335,16 +1391,16 @@ function Bookings({ session, refresh, run, open, summary = false }) {
           </Field>
           <Field label="Sort">
             <select value={sort} onChange={(e) => setSort(e.target.value)}>
-              <option value="newest">Newest bookings</option>
+              <option value="newest">Newest tickets</option>
               <option value="departure">Departure time</option>
             </select>
           </Field>
         </div>
       )}
       {items === null ? (
-        <Empty>Loading bookings…</Empty>
+        <Empty>Loading tickets…</Empty>
       ) : !rows.length ? (
-        <Empty>No reservations match.</Empty>
+        <Empty>No connected tickets match.</Empty>
       ) : (
         <div className="grid">
           {rows.map((t) => (
@@ -2197,43 +2253,19 @@ function Auth({ run, notify, loggedIn, reset, staffOnly = false }) {
     </div>
   );
 }
-function PassengerProfile({
-  session,
-  navigate,
-  logout,
-  busy,
-  install,
-  appInstalled,
-  installed,
-  savePhoto,
-  photoError,
-}) {
-  const user = session?.user;
+function ProfilePhotoSettings({ user, busy, savePhoto, photoError }) {
   const photoInput = useRef(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   return (
-    <section className="passenger-profile">
-      <div className="profile-identity">
-        <span className="profile-avatar">
-          {user?.profilePhoto ? (
-            <img
-              src={user.profilePhoto}
-              alt={`${user.name || "Passenger"} profile`}
-            />
-          ) : (
-            (user?.name || "Passenger")
-              .split(/\s+/)
-              .map((p) => p[0])
-              .slice(0, 2)
-              .join("")
-              .toUpperCase()
-          )}
-        </span>
-        <div>
-          <strong>{user?.name || "Passenger"}</strong>
-          <p>Passenger account</p>
-        </div>
-      </div>
+    <section className="profile-photo-settings">
+      <h2>Profile photo</h2>
+      <span className="profile-avatar">
+        {user?.profilePhoto ? (
+          <img src={user.profilePhoto} alt="Your profile photo" />
+        ) : (
+          <User size={24} />
+        )}
+      </span>
       <div className="profile-photo-actions">
         <input
           ref={photoInput}
@@ -2275,6 +2307,43 @@ function PassengerProfile({
           </button>
         )}
       </div>
+    </section>
+  );
+}
+function PassengerProfile({
+  session,
+  navigate,
+  logout,
+  busy,
+  install,
+  appInstalled,
+  installed,
+}) {
+  const user = session?.user;
+  return (
+    <section className="passenger-profile">
+      <div className="profile-identity">
+        <span className="profile-avatar">
+          {user?.profilePhoto ? (
+            <img
+              src={user.profilePhoto}
+              alt={`${user.name || "Passenger"} profile`}
+            />
+          ) : (
+            (user?.name || "Passenger")
+              .split(/\s+/)
+              .map((p) => p[0])
+              .slice(0, 2)
+              .join("")
+              .toUpperCase()
+          )}
+        </span>
+        <div>
+          <strong>{user?.name || "Passenger"}</strong>
+          <p>Passenger account</p>
+        </div>
+      </div>
+
       {[
         [
           Smartphone,
@@ -3750,14 +3819,14 @@ function Guide() {
           as unavailable.
         </li>
         <li>
-          <strong>Reserve a seat.</strong> Sign in to your verified passenger
-          account, choose a trip, destination and seat, then confirm. Wait for
-          the saved confirmation.
+          <strong>Reserve at the kiosk.</strong> Choose passenger type, seat and
+          destination at the kiosk, then generate and print your ticket. The
+          passenger app cannot book seats.
         </li>
         <li>
-          <strong>Open your ticket.</strong> Select My Bookings or Tickets. Your
-          booking reference, full ticket number and QR code are saved in your
-          account.
+          <strong>Connect your ticket.</strong> Sign in to the passenger app,
+          open My Ticket and scan the printed kiosk QR code. Your connected
+          ticket is saved to your account.
         </li>
         <li>
           <strong>Create a kiosk ticket.</strong> Tap Touch Screen to Begin,
