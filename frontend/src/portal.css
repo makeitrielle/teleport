@@ -1226,6 +1226,19 @@ summary {
   color: var(--link);
   background: var(--soft);
   font-weight: 800;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.profile-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0 20px;
 }
 .profile-row {
   display: flex;

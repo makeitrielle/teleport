@@ -285,6 +285,46 @@ test("registration, email verification and password reset use hashed one-time to
     delete process.env.EMAIL_FROM;
   }
 });
+test("profile photos persist for their owner and reject unauthorized or unsafe updates", async () => {
+  const profilePhoto = "data:image/jpeg;base64,/9j/2Q==";
+  const path = `/passengers/${passenger._id}`;
+  const saved = await http(path, { method: "PATCH", data: { profilePhoto } });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.body.profilePhoto, profilePhoto);
+  assert.equal((await http("/session")).body.user.profilePhoto, profilePhoto);
+  assert.equal(
+    (
+      await http(path, {
+        method: "PATCH",
+        cookie: otherCookie,
+        data: { profilePhoto: "" },
+      })
+    ).status,
+    403,
+  );
+  for (const invalid of [
+    "https://example.invalid/photo.jpg",
+    "data:image/svg+xml;base64,PHN2Zz4=",
+    "data:image/jpeg;base64," + "A".repeat(24000),
+  ]) {
+    assert.equal(
+      (await http(path, { method: "PATCH", data: { profilePhoto: invalid } }))
+        .status,
+      400,
+    );
+  }
+  assert.equal(
+    (await Passenger.findById(passenger._id)).profilePhoto,
+    profilePhoto,
+  );
+  const removed = await http(path, {
+    method: "PATCH",
+    data: { profilePhoto: "" },
+  });
+  assert.equal(removed.status, 200);
+  assert.equal(removed.body.profilePhoto, "");
+});
+
 test("legacy phone migration allows empty phones while preserving email uniqueness", async () => {
   const collection = mongoose.connection.db.collection(
     "phone-index-migration-test",

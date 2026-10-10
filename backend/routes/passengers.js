@@ -175,11 +175,9 @@ router.post("/forgot-password", rateLimit(8), async (req, res) => {
   )
     return res.status(400).json({ error: "Enter a valid email address." });
   if (!emailConfigured())
-    return res
-      .status(503)
-      .json({
-        error: "Password reset email is unavailable. Please contact support.",
-      });
+    return res.status(503).json({
+      error: "Password reset email is unavailable. Please contact support.",
+    });
   const email = (req.body.email || "").toLowerCase().trim();
   const genericMessage =
     "If an account exists for that email, a password reset link has been sent.";
@@ -264,6 +262,19 @@ router.patch("/:id", requireAuth, guardId, async (req, res) => {
       .status(403)
       .json({ error: "You can only update your own account." });
   const updates = {};
+  if (req.body.profilePhoto !== undefined) {
+    const photo = req.body.profilePhoto;
+    if (
+      typeof photo !== "string" ||
+      photo.length > 24000 ||
+      (photo !== "" &&
+        !/^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]*={0,2}$/.test(photo))
+    )
+      return res
+        .status(400)
+        .json({ error: "Choose a valid profile photo. Try a smaller image." });
+    updates.profilePhoto = photo;
+  }
   if (
     typeof req.body.name === "string" &&
     req.body.name.trim().length >= 2 &&

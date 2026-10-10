@@ -63,6 +63,49 @@ const day = () =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(
     new Date(),
   );
+function installedApp() {
+  return (
+    matchMedia("(display-mode: standalone)").matches ||
+    matchMedia("(display-mode: fullscreen)").matches ||
+    navigator.standalone === true
+  );
+}
+
+async function prepareProfilePhoto(file) {
+  if (!file || !["image/jpeg", "image/png", "image/webp"].includes(file.type))
+    throw new Error("Choose a JPG, PNG, or WebP photo.");
+  if (file.size > 10 * 1024 * 1024)
+    throw new Error("Choose a photo smaller than 10 MB.");
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 160;
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#f7f2e9";
+    context.fillRect(0, 0, 160, 160);
+    const side = Math.min(image.naturalWidth, image.naturalHeight);
+    context.drawImage(
+      image,
+      (image.naturalWidth - side) / 2,
+      (image.naturalHeight - side) / 2,
+      side,
+      side,
+      0,
+      0,
+      160,
+      160,
+    );
+    const photo = canvas.toDataURL("image/jpeg", 0.7);
+    if (photo.length > 24000)
+      throw new Error("This photo is too detailed. Choose a simpler image.");
+    return photo;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 const categories = {
   regular: "Regular Passenger",
   student: "Student",
@@ -94,7 +137,9 @@ function MessagePopup({ message, error, dismiss }) {
     >
       <h2 id={titleId}>{error ? "Please try again" : "Notification"}</h2>
       <p id={messageId}>{message}</p>
-      <button type="button" autoFocus onClick={dismiss}>OK</button>
+      <button type="button" autoFocus onClick={dismiss}>
+        OK
+      </button>
     </dialog>
   );
 }
@@ -436,6 +481,11 @@ export default function Portal() {
       () => localStorage.getItem(kiosk ? "kiosk-theme" : "theme") || "light",
     ),
     [install, setInstall] = useState(null),
+    [appInstalled, setAppInstalled] = useState(
+      () =>
+        installedApp() ||
+        localStorage.getItem("tele-port-installed") === "true",
+    ),
     [notifications, setNotifications] = useState([]),
     [online, setOnline] = useState(navigator.onLine);
   const staff = ["staff", "admin"].includes(session?.role),
@@ -524,13 +574,29 @@ export default function Portal() {
     const handler = (e) => {
       e.preventDefault();
       setInstall(e);
+      setAppInstalled(false);
+      localStorage.removeItem("tele-port-installed");
     };
+    const markInstalled = () => {
+      setInstall(null);
+      setAppInstalled(true);
+      localStorage.setItem("tele-port-installed", "true");
+    };
+    const displayMode = matchMedia("(display-mode: standalone)");
+    const checkDisplayMode = () => {
+      if (installedApp()) markInstalled();
+    };
+    checkDisplayMode();
+    addEventListener("appinstalled", markInstalled);
+    displayMode.addEventListener("change", checkDisplayMode);
     const update = () => setOnline(navigator.onLine);
     addEventListener("beforeinstallprompt", handler);
     addEventListener("online", update);
     addEventListener("offline", update);
     return () => {
       removeEventListener("beforeinstallprompt", handler);
+      removeEventListener("appinstalled", markInstalled);
+      displayMode.removeEventListener("change", checkDisplayMode);
       removeEventListener("online", update);
       removeEventListener("offline", update);
     };
@@ -763,7 +829,7 @@ export default function Portal() {
           <MessagePopup
             message={error || notice}
             error={Boolean(error)}
-            dismiss={() => error ? setError("") : setNotice("")}
+            dismiss={() => (error ? setError("") : setNotice(""))}
           />
         )}
         {busy && !["Sign in", "Reset password"].includes(page) && (
@@ -907,7 +973,20 @@ export default function Portal() {
                         logout={logout}
                         busy={busy}
                         install={install}
+                        appInstalled={appInstalled}
                         installed={() => setInstall(null)}
+                        savePhoto={(photo) =>
+                          run(async () => {
+                            await call(
+                              `/passengers/${session.user._id}`,
+                              { profilePhoto: photo },
+                              "PATCH",
+                            );
+                            await loadSession();
+                            setNotice("Profile photo updated.");
+                          })
+                        }
+                        photoError={setError}
                       />
                     )}
                     <details
@@ -970,23 +1049,24 @@ export default function Portal() {
                         <option value="dark">Dark Mode</option>
                       </select>
                     </Field>
-                    {install ? (
-                      <button
-                        onClick={async () => {
-                          await install.prompt();
-                          setInstall(null);
-                        }}
-                      >
-                        Install passenger app
-                      </button>
-                    ) : (
-                      <p>
-                        To install on a supported mobile browser, select
-                        “Install app” or “Add to Home Screen” from its menu.
-                        Installation requires HTTPS. Reservations and tracking
-                        need an internet connection.
-                      </p>
-                    )}
+                    {!appInstalled &&
+                      (install ? (
+                        <button
+                          onClick={async () => {
+                            await install.prompt();
+                            setInstall(null);
+                          }}
+                        >
+                          Install passenger app
+                        </button>
+                      ) : (
+                        <p>
+                          To install on a supported mobile browser, select
+                          “Install app” or “Add to Home Screen” from its menu.
+                          Installation requires HTTPS. Reservations and tracking
+                          need an internet connection.
+                        </p>
+                      ))}
                     {kiosk && (
                       <button
                         onClick={() =>
@@ -2123,24 +2203,77 @@ function PassengerProfile({
   logout,
   busy,
   install,
+  appInstalled,
   installed,
+  savePhoto,
+  photoError,
 }) {
   const user = session?.user;
+  const photoInput = useRef(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
   return (
     <section className="passenger-profile">
       <div className="profile-identity">
         <span className="profile-avatar">
-          {(user?.name || "Passenger")
-            .split(/\s+/)
-            .map((p) => p[0])
-            .slice(0, 2)
-            .join("")
-            .toUpperCase()}
+          {user?.profilePhoto ? (
+            <img
+              src={user.profilePhoto}
+              alt={`${user.name || "Passenger"} profile`}
+            />
+          ) : (
+            (user?.name || "Passenger")
+              .split(/\s+/)
+              .map((p) => p[0])
+              .slice(0, 2)
+              .join("")
+              .toUpperCase()
+          )}
         </span>
         <div>
           <strong>{user?.name || "Passenger"}</strong>
           <p>Passenger account</p>
         </div>
+      </div>
+      <div className="profile-photo-actions">
+        <input
+          ref={photoInput}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          hidden
+          onChange={async (event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (!file) return;
+            setPhotoBusy(true);
+            try {
+              await savePhoto(await prepareProfilePhoto(file));
+            } catch (error) {
+              photoError(error.message);
+            } finally {
+              setPhotoBusy(false);
+            }
+          }}
+        />
+        <button
+          type="button"
+          disabled={busy || photoBusy}
+          onClick={() => photoInput.current.click()}
+        >
+          {photoBusy
+            ? "Saving photo…"
+            : user?.profilePhoto
+              ? "Change photo"
+              : "Add profile photo"}
+        </button>
+        {user?.profilePhoto && (
+          <button
+            type="button"
+            disabled={busy || photoBusy}
+            onClick={() => savePhoto("")}
+          >
+            Remove photo
+          </button>
+        )}
       </div>
       {[
         [
@@ -2154,13 +2287,17 @@ function PassengerProfile({
           },
         ],
         [Settings, "Settings", () => navigate("Settings")],
-      ].map(([Icon, label, action]) => (
-        <button className="profile-row" key={label} onClick={action}>
-          <Icon size={20} />
-          <strong>{label}</strong>
-          <ChevronRight size={18} />
-        </button>
-      ))}
+      ]
+        .filter(
+          ([, label]) => !appInstalled || label !== "Install TELE-PORT app",
+        )
+        .map(([Icon, label, action]) => (
+          <button className="profile-row" key={label} onClick={action}>
+            <Icon size={20} />
+            <strong>{label}</strong>
+            <ChevronRight size={18} />
+          </button>
+        ))}
       <button
         className="profile-row profile-logout"
         onClick={logout}

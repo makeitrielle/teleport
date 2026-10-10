@@ -15,6 +15,7 @@ const PassengerSchema = new mongoose.Schema(
       default: "regular",
     },
     phone: { type: String, default: "" },
+    profilePhoto: { type: String, default: "", maxlength: 24000 },
     email: { type: String, lowercase: true, trim: true },
     trips: { type: Number, default: 0 },
     passwordHash: { type: String, default: null },
