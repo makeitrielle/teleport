@@ -81,6 +81,18 @@ app.use("/api", wrapRouter(platformRoutes));
 // basic error handler
 app.use((err, req, res, next) => {
   console.error("[api]", err.name, err.code || err.status || "");
+  if (err.code === 11000 && req.originalUrl.startsWith("/api/passengers")) {
+    const emailConflict = err.keyPattern?.email || err.keyValue?.email;
+    console.error(
+      "[accounts] conflicting index fields:",
+      Object.keys(err.keyPattern || err.keyValue || {}),
+    );
+    return res.status(emailConflict ? 409 : 503).json({
+      error: emailConflict
+        ? "An account with that email already exists. Sign in or reset your password."
+        : "Account registration is blocked by a database constraint. Please contact support.",
+    });
+  }
   if (err.code === 11000)
     return res.status(409).json({
       error:

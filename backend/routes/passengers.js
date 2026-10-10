@@ -19,8 +19,12 @@ function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
+function emailConfigured() {
+  return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
+}
+
 async function sendAccountEmail({ to, subject, text, html }) {
-  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
+  if (!emailConfigured()) {
     throw new Error(
       "Email delivery is not configured. Set RESEND_API_KEY and EMAIL_FROM on the backend.",
     );
@@ -38,6 +42,7 @@ async function sendAccountEmail({ to, subject, text, html }) {
       text,
       html,
     }),
+    signal: AbortSignal.timeout(15000),
   });
   if (!response.ok) {
     const details = await response.text();
@@ -164,8 +169,17 @@ router.post("/verify-email", async (req, res) => {
 });
 
 router.post("/forgot-password", rateLimit(8), async (req, res) => {
-  if (typeof req.body.email !== "string")
+  if (
+    typeof req.body.email !== "string" ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(req.body.email.trim())
+  )
     return res.status(400).json({ error: "Enter a valid email address." });
+  if (!emailConfigured())
+    return res
+      .status(503)
+      .json({
+        error: "Password reset email is unavailable. Please contact support.",
+      });
   const email = (req.body.email || "").toLowerCase().trim();
   const genericMessage =
     "If an account exists for that email, a password reset link has been sent.";

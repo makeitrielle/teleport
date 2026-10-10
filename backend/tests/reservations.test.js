@@ -284,6 +284,55 @@ test("registration, email verification and password reset use hashed one-time to
     delete process.env.EMAIL_FROM;
   }
 });
+test("registration duplicate indexes report account errors instead of seat errors", async () => {
+  const originalCreate = Passenger.create;
+  try {
+    for (const field of ["email", "phone"]) {
+      Passenger.create = async () => {
+        throw Object.assign(new Error("Duplicate account field"), {
+          code: 11000,
+          keyPattern: { [field]: 1 },
+        });
+      };
+      const response = await http("/passengers/signup", {
+        cookie: null,
+        data: {
+          name: "Duplicate test",
+          email: "duplicate@example.invalid",
+          password: "test-password-123",
+        },
+      });
+      assert.equal(response.status, field === "email" ? 409 : 503);
+      assert.doesNotMatch(response.body.error, /seat|reserved/i);
+      assert.match(
+        response.body.error,
+        field === "email" ? /email already exists/ : /database constraint/,
+      );
+    }
+  } finally {
+    Passenger.create = originalCreate;
+  }
+});
+
+test("forgot password never claims delivery when email is unconfigured", async () => {
+  const apiKey = process.env.RESEND_API_KEY;
+  delete process.env.RESEND_API_KEY;
+  try {
+    for (const email of [passenger.email, "missing@example.invalid"]) {
+      const response = await http("/passengers/forgot-password", {
+        cookie: null,
+        data: { email },
+      });
+      assert.equal(response.status, 503);
+      assert.match(response.body.error, /email is unavailable/);
+    }
+    const account = await Passenger.findById(passenger._id);
+    assert.equal(account.passwordResetTokenHash, null);
+  } finally {
+    if (apiKey !== undefined) process.env.RESEND_API_KEY = apiKey;
+  }
+});
+
 test("staff can publish and update Bus 2 schedules; passengers cannot publish schedules", async () => {
   const data = {
     busId: String(bus2._id),
