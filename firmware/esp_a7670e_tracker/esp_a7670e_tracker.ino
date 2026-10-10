@@ -53,8 +53,8 @@
 
 // --- WiFi ---
 // Replace these placeholders with your WiFi network name and password.
-const char* WIFI_SSID = "Kookynet 2.4";
-const char* WIFI_PASSWORD = "Majal@152930";
+const char* WIFI_SSID = "Zhen";
+const char* WIFI_PASSWORD = "Kissmuna";
 
 // --- Backend server ---
 // For WiFi testing, this can be your backend's LAN IP when the backend
@@ -419,7 +419,14 @@ void checkGpsAndUpdate() {
   latestFixStatus = fixStatus;
 
   // TinyGSM reports A7670 speed in knots; convert to km/h for the API/UI.
-  speedKmh *= 1.852f;
+  // Missing GNSS fields can be returned as a negative sentinel. Keep the
+  // valid position, but never use that sentinel as movement or send it to API.
+  if (!isfinite(speedKmh) || speedKmh < 0) {
+    SerialMon.println("GPS speed unavailable; sending zero speed with the valid position.");
+    speedKmh = 0;
+  } else {
+    speedKmh *= 1.852f;
+  }
 
   if (!routeDirectionSet) {
     const float toStart = haversineMeters(lat, lon, STOPS[0].lat, STOPS[0].lon);
@@ -434,11 +441,10 @@ void checkGpsAndUpdate() {
   SerialMon.print(lat, 6);
   SerialMon.print(", ");
   SerialMon.print(lon, 6);
-  checkDropoffAlerts(lat, lon);
-
   SerialMon.print("  speed=");
   SerialMon.print(speedKmh);
   SerialMon.println(" km/h");
+  checkDropoffAlerts(lat, lon);
 
   // When a completed bus leaves its terminal, start tracking the return leg.
   if (routeComplete && haversineMeters(lat, lon, STOPS[currentStopIndex].lat,
@@ -528,22 +534,26 @@ void sendBusUpdate(float lat, float lon, float speedKmh,
 bool requestDropoffs(String& response) {
   if (WiFi.status() != WL_CONNECTED) return false;
   WiFiClientSecure client;
-  // Authenticate the configured HTTPS server with its trusted CA.
   if (!configureSecureClient(client)) return false;
-  if (!client.connect(SERVER_HOST, SERVER_PORT)) return false;
+  HTTPClient http;
+  http.setConnectTimeout(8000);
+  http.setTimeout(8000);
+  http.setReuse(false);
   const String path = String(API_BASE_PATH) + "/bus/dropoffs?busId=" + BUS_ID;
-  client.print("GET " + path + " HTTP/1.1\r\nHost: " + SERVER_HOST + "\r\nAuthorization: Bearer " + TELEPORT_DEVICE_KEY + "\r\nConnection: close\r\n\r\n");
-  const unsigned long started = millis();
-  String raw;
-  while ((client.connected() || client.available()) && millis() - started < 8000) {
-    while (client.available()) raw += static_cast<char>(client.read());
-    delay(1);
+  const String url = String("https://") + SERVER_HOST + ":" + SERVER_PORT + path;
+  if (!http.begin(client, url)) return false;
+  http.addHeader("Authorization", String("Bearer ") + TELEPORT_DEVICE_KEY);
+  const int code = http.GET();
+  bool ok = false;
+  if (code == 200) {
+    // getString decodes HTTP chunk framing before JSON parsing.
+    response = http.getString();
+    ok = !response.isEmpty();
+  } else {
+    SerialMon.printf("Drop-off list request failed: HTTP %d\n", code);
   }
-  client.stop();
-  const int bodyStart = raw.indexOf("\r\n\r\n");
-  if (bodyStart < 0 || raw.indexOf(" 200 ") < 0) return false;
-  response = raw.substring(bodyStart + 4);
-  return true;
+  http.end();
+  return ok;
 }
 
 bool acknowledgeDropoff(const String& ticketId) {
@@ -621,6 +631,16 @@ bool sendApiRequest(const char* method, const String& path, const String& jsonBo
     SerialMon.printf("Server response: HTTP %d\n", code);
     if (code < 0) {
       SerialMon.println("HTTPS transport: " + HTTPClient::errorToString(code));
+      char tlsError[160] = {0};
+      const int tlsCode = client.lastError(tlsError, sizeof(tlsError));
+      SerialMon.printf("TLS error: %d %s\n", tlsCode, tlsError);
+      IPAddress backendAddress;
+      if (WiFi.hostByName(SERVER_HOST, backendAddress)) {
+        SerialMon.printf("Backend DNS: %s -> %s:%d\n", SERVER_HOST,
+                         backendAddress.toString().c_str(), SERVER_PORT);
+      } else {
+        SerialMon.println("Backend DNS lookup failed; check WiFi internet access.");
+      }
     } else {
       // Log only the API's error field, never response credentials or bus records.
       JsonDocument response;

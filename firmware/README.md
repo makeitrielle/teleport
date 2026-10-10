@@ -29,6 +29,8 @@ Seat mapping:
 
 ## Speaker / voice alert wiring
 
+For MP3-TF-16P wiring and a simple sound test, see [MP3_TF_16P.md](MP3_TF_16P.md). The standalone `mp3_tf_16p_test` sketch plays clips when you type 1, 2, or 3; upload the combined Mega seat sketch again afterwards.
+
 - Mega D16 (TX2) → 1 kOhm series resistor → DFPlayer RX
 - DFPlayer TX → Mega D17 (RX2)
 - DFPlayer VCC → regulated 5V supply

@@ -8,9 +8,9 @@
 
   Board: Arduino Mega 2560
   Sensors: 61 two-wire FLEXKYS mats via four CD74HC4067 modules
-  Voice player: DFPlayer Mini on Mega Serial2; speaker driven by DFPlayer
+  Voice player: DFPlayer-compatible MP3-TF-16P on Mega Serial2 (TX2=16, RX2=17)
 
-  The ESP32 sends SEAT,<id>,BOOKED|AVAILABLE lines to Serial1.
+  The Mega sends SEAT,<id>,BOOKED|AVAILABLE lines to the ESP32 on Serial1.
   The ESP32 can also send VOICE,<file-number> to play /mp3/0001.mp3 etc.
 */
 

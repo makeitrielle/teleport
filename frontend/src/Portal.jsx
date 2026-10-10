@@ -74,6 +74,30 @@ const markerIcon = L.divIcon({
   html: "●",
   iconSize: [22, 22],
 });
+function MessagePopup({ message, error, dismiss }) {
+  const dialog = useRef(null);
+  const titleId = React.useId();
+  const messageId = React.useId();
+  useEffect(() => {
+    dialog.current.showModal();
+  }, []);
+  return (
+    <dialog
+      ref={dialog}
+      className="message-popup"
+      aria-labelledby={titleId}
+      aria-describedby={messageId}
+      onCancel={(event) => {
+        event.preventDefault();
+        dismiss();
+      }}
+    >
+      <h2 id={titleId}>{error ? "Please try again" : "Notification"}</h2>
+      <p id={messageId}>{message}</p>
+      <button type="button" autoFocus onClick={dismiss}>OK</button>
+    </dialog>
+  );
+}
 function Field({ label, children, ...props }) {
   const id = React.useId();
   return (
@@ -735,15 +759,12 @@ export default function Portal() {
             tracking require a connection.
           </div>
         )}
-        {error && (
-          <div className="alert error" role="alert">
-            {error}
-          </div>
-        )}
-        {notice && (
-          <div className="alert success" role="status">
-            {notice}
-          </div>
+        {(error || notice) && (
+          <MessagePopup
+            message={error || notice}
+            error={Boolean(error)}
+            dismiss={() => error ? setError("") : setNotice("")}
+          />
         )}
         {busy && !["Sign in", "Reset password"].includes(page) && (
           <div className="loading" role="status">

@@ -1,4 +1,4 @@
-const CACHE_NAME = "tele-port-shell-v17";
+const CACHE_NAME = "tele-port-shell-v18";
 const APP_ROOT = "/";
 
 self.addEventListener("install", (event) => {
@@ -64,10 +64,14 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response.ok)
-            caches
-              .open(CACHE_NAME)
-              .then((cache) => cache.put(url.pathname, response.clone()));
+          if (response.ok) {
+            const cacheCopy = response.clone();
+            event.waitUntil(
+              caches.open(CACHE_NAME)
+                .then((cache) => cache.put(url.pathname, cacheCopy))
+                .catch(() => { /* A cache failure must not interrupt navigation. */ }),
+            );
+          }
           return response;
         })
         .catch(async () => {
@@ -90,10 +94,14 @@ self.addEventListener("fetch", (event) => {
         (cached) =>
           cached ||
           fetch(request).then((response) => {
-            if (response.ok)
-              caches
-                .open(CACHE_NAME)
-                .then((cache) => cache.put(request, response.clone()));
+            if (response.ok) {
+              const cacheCopy = response.clone();
+              event.waitUntil(
+                caches.open(CACHE_NAME)
+                  .then((cache) => cache.put(request, cacheCopy))
+                  .catch(() => { /* The network response remains usable without caching. */ }),
+              );
+            }
             return response;
           }),
       ),
