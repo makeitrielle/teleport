@@ -1008,6 +1008,7 @@ test("uncertain receipt resolution requires staff and retains the booking", asyn
   assert.equal((await Ticket.findById(ticket.id)).status, "active");
 });
 test("walk-up locks require fresh physical availability", async () => {
+  const deviceKey = "walkup-seat-state-test-device-only";
   const third = await Bus.create({
     busId: "TEST-BUS-3",
     name: "Third test bus",
@@ -1015,6 +1016,7 @@ test("walk-up locks require fresh physical availability", async () => {
     to: "PITX",
     totalSeats: 6,
     monitoredSeatIds: [6],
+    deviceTokenHash: hashToken(deviceKey),
     seats: [
       {
         id: 6,
@@ -1038,6 +1040,30 @@ test("walk-up locks require fresh physical availability", async () => {
   assert.equal((await http("/tickets", { data })).status, 403);
   const issued = await http("/tickets/kiosk", { cookie: null, data });
   assert.equal(issued.status, 201, JSON.stringify(issued.body));
+  const publicSeat = async () => {
+    const feed = await http("/tickets/kiosk/buses", { cookie: null });
+    return feed.body.find((b) => b._id === String(third._id)).seats[0];
+  };
+  assert.equal((await publicSeat()).displayState, "reserved");
+  assert.equal((await publicSeat()).occupancy, "available");
+  const sensorReading = (status) =>
+    http("/bus/seats", {
+      cookie: null,
+      headers: { Authorization: `Bearer ${deviceKey}` },
+      data: { busId: third.busId, seatId: 6, status },
+    });
+  // Existing firmware calls an occupied sensor "booked"; this must not mean
+  // that issuing a kiosk ticket physically occupies the seat.
+  assert.equal((await sensorReading("booked")).status, 200);
+  assert.equal((await publicSeat()).displayState, "occupied");
+  assert.equal((await Ticket.findById(issued.body._id)).status, "active");
+  assert.equal(
+    (await http("/tickets/kiosk", { cookie: null, data })).status,
+    409,
+  );
+  assert.equal((await sensorReading("available")).status, 200);
+  // Standing up alone must not sell an active passenger's seat again.
+  assert.equal((await publicSeat()).displayState, "reserved");
   const connected = await http("/connect-ticket", {
     data: { reference: issued.body.qrCode },
   });
@@ -1068,6 +1094,7 @@ test("walk-up locks require fresh physical availability", async () => {
     data: { status: "used" },
   });
   assert.equal((await Bus.findById(third._id)).seats[0].status, "available");
+  assert.equal((await publicSeat()).displayState, "available");
   await Bus.updateOne(
     { _id: third._id },
     { $set: { "seats.0.sensorUpdatedAt": Date.now() - 100000 } },

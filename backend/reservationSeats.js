@@ -1,4 +1,4 @@
-import { monitoredSeatIds } from "../shared/seatPolicy.js";
+import { monitoredSeatIds, seatDisplayState } from "../shared/seatPolicy.js";
 import Ticket from "./models/Ticket.js";
 // Reservations and physical occupancy are independent. Both monitors use this view.
 export async function withReservationStatus(buses) {
@@ -15,9 +15,12 @@ export async function withReservationStatus(buses) {
   return buses.map((bus) => ({
     ...bus,
     monitoredSeatIds: monitoredSeatIds(bus),
-    seats: (bus.seats || []).map((seat) => ({
-      ...seat,
-      status: reserved.has(`${bus._id}:${seat.id}`) ? "booked" : seat.status,
-    })),
+    seats: (bus.seats || []).map((seat) => {
+      const allocated = {
+        ...seat,
+        status: reserved.has(`${bus._id}:${seat.id}`) ? "booked" : seat.status,
+      };
+      return { ...allocated, displayState: seatDisplayState(bus, allocated) };
+    }),
   }));
 }

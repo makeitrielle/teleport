@@ -113,7 +113,7 @@ const PORT = process.env.PORT || 4000;
 const server = createServer(app);
 attachPrintAgent(server);
 
-export { app };
+export { app, server };
 if (process.env.TELEPORT_TEST_MODE !== "true")
   connectDB()
     .then(() => {

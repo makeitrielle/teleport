@@ -45,7 +45,7 @@ import {
   canUseSeat,
   isPrioritySeat,
   kioskSeatLayout,
-  isSeatMonitored,
+  seatDisplayState,
 } from "../../shared/seatPolicy.js";
 import "./portal.css";
 
@@ -111,6 +111,12 @@ const categories = {
   student: "Student",
   pwd: "PWD",
   senior: "Senior Citizen",
+};
+const seatStateLabels = {
+  available: "Available",
+  reserved: "Reserved",
+  occupied: "Occupied",
+  offline: "Sensor unavailable",
 };
 const markerIcon = L.divIcon({
   className: "bus-marker",
@@ -1787,10 +1793,7 @@ function Walkup({ run, open, close }) {
     available = (bus?.seats || []).filter(
       (s) =>
         canUseSeat(bus, s.id, category) &&
-        isSeatMonitored(bus, s.id) &&
-        liveSeat(s) &&
-        s.status === "available" &&
-        s.occupancy === "available",
+        seatDisplayState(bus, s) === "available",
     ),
     seatValid = available.some((s) => s.id === Number(seat));
   return (
@@ -1861,7 +1864,8 @@ function Walkup({ run, open, close }) {
             </p>
             <div className="kiosk-seat-legend">
               <span>Available</span>
-              <span>Occupied / reserved</span>
+              <span>Reserved</span>
+              <span>Occupied</span>
               <span>Sensor unavailable</span>
             </div>
             <div className="kiosk-bus-layout">
@@ -1872,6 +1876,12 @@ function Walkup({ run, open, close }) {
                 {kioskSeatLayout(bus).map((s, i) => {
                   const ok = available.some((a) => a.id === s.id);
                   const priorityOnly = !canUseSeat(bus, s.id, category);
+                  const state = seatDisplayState(bus, s);
+                  const tone = ["reserved", "occupied"].includes(state)
+                    ? state
+                    : priorityOnly
+                      ? "priority"
+                      : state;
                   return (
                     <button
                       type="button"
@@ -1885,14 +1895,17 @@ function Walkup({ run, open, close }) {
                               : (i % 5) + 2
                             : i - 54,
                       }}
-                      className={`kiosk-seat-button ${priorityOnly ? "priority" : !liveSeat(s) || !isSeatMonitored(bus, s.id) ? "offline" : !ok ? "occupied" : "available"} ${Number(seat) === s.id ? "selected" : ""}`}
+                      className={`kiosk-seat-button ${tone} ${ok && Number(seat) === s.id ? "selected" : ""}`}
                       disabled={!ok || pending}
                       aria-pressed={Number(seat) === s.id}
-                      aria-label={`Seat ${s.id}${!ok ? (priorityOnly ? ", PWD and senior only" : !liveSeat(s) ? ", sensor unavailable" : ", unavailable") : ""}`}
+                      aria-label={`Seat ${s.id}, ${seatStateLabels[state]}${priorityOnly ? ", PWD and senior only" : ""}`}
                       onClick={() => setSeat(String(s.id))}
                     >
                       <Armchair size={20} />
                       <span>{s.id}</span>
+                      {["reserved", "occupied"].includes(state) && (
+                        <small>{seatStateLabels[state]}</small>
+                      )}
                       {isPrioritySeat(bus, s.id) && <small>Priority</small>}
                     </button>
                   );
@@ -2466,26 +2479,19 @@ function PassengerSeats({ run }) {
             <div className="seat-grid">
               {(bus.seats || []).map((s) => (
                 <div
-                  className={`seat ${s.status === "booked" ? "seat-occupied" : liveSeat(s) ? (s.occupancy === "available" ? "seat-available" : "seat-occupied") : "seat-offline"}`}
+                  className={`seat seat-${seatDisplayState(bus, s)}`}
                   key={s.id}
                 >
                   <Armchair size={22} />
                   <strong>Seat {s.id}</strong>
-                  <span>
-                    {s.status === "booked"
-                      ? "Reserved"
-                      : !liveSeat(s)
-                        ? "Sensor unavailable"
-                        : s.occupancy === "occupied"
-                          ? "Occupied"
-                          : "Available"}
-                  </span>
+                  <span>{seatStateLabels[seatDisplayState(bus, s)]}</span>
                 </div>
               ))}
             </div>
             <p>
-              Reserved seats are unavailable to other passengers, even when
-              empty. Seat information refreshes every 10 seconds.
+              A kiosk ticket reserves the seat. It changes to occupied when its
+              sensor detects someone seated. Both states prevent another
+              booking. Seat information refreshes every 10 seconds.
             </p>
           </article>
         ))

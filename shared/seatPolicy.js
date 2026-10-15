@@ -35,3 +35,18 @@ export function monitoredSeatIds(bus) {
 export function isSeatMonitored(bus, seatId) {
   return monitoredSeatIds(bus).includes(Number(seatId));
 }
+
+// Ticket allocation and physical presence are separate facts. A live occupied
+// sensor takes display priority without cancelling the passenger's trip ticket.
+export function seatDisplayState(bus, seat, now = Date.now()) {
+  const fresh =
+    isSeatMonitored(bus, seat.id) &&
+    seat.sensor === "ok" &&
+    Number.isFinite(seat.sensorUpdatedAt) &&
+    now - seat.sensorUpdatedAt >= 0 &&
+    now - seat.sensorUpdatedAt <= 90000 &&
+    ["available", "occupied"].includes(seat.occupancy);
+  if (fresh && seat.occupancy === "occupied") return "occupied";
+  if (seat.status === "booked") return "reserved";
+  return fresh ? "available" : "offline";
+}

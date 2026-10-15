@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1850" height="1340" viewBox="0 0 1850 1340">
+<rect width="100%" height="100%" fill="white"/>
+<text x="80" y="74" font-family="Arial,sans-serif" font-size="39" font-weight="700" fill="#20252b" text-anchor="start">TELE-PORT KIOSK — EQUIPMENT CONNECTION SCHEMATIC</text>
+<text x="80" y="121" font-family="Arial,sans-serif" font-size="27" font-weight="400" fill="#20252b" text-anchor="start">Lenovo ThinkCentre M710q Tiny • touchscreen monitor • XP-58 thermal printer</text>
+<text x="80" y="163" font-family="Arial,sans-serif" font-size="24" font-weight="400" fill="#20252b" text-anchor="start">Based on your earlier touchscreen: Mini HDMI video + USB-C touch + separate USB-C power.</text>
+<rect x="100" y="260" width="580" height="500" fill="white" stroke="#9b2020" stroke-width="3"/>
+<text x="122" y="310" font-family="Arial,sans-serif" font-size="30" font-weight="700" fill="#20252b" text-anchor="start">U1  LENOVO THINKCENTRE M710q</text>
+<text x="125" y="345" font-family="Arial,sans-serif" font-size="26" font-weight="400" fill="#20252b" text-anchor="start">Mini PC / kiosk software</text>
+<text x="130" y="381" font-family="Arial,sans-serif" font-size="26" font-weight="700" fill="#20252b" text-anchor="start">DisplayPort OUT</text>
+<circle cx="680" cy="370" r="5" fill="white" stroke="#9b2020" stroke-width="2"/>
+<text x="130" y="491" font-family="Arial,sans-serif" font-size="26" font-weight="700" fill="#20252b" text-anchor="start">USB-A 1  / TOUCH DATA</text>
+<circle cx="680" cy="480" r="5" fill="white" stroke="#9b2020" stroke-width="2"/>
+<text x="130" y="661" font-family="Arial,sans-serif" font-size="26" font-weight="700" fill="#20252b" text-anchor="start">USB-A 2  / PRINTER DATA</text>
+<circle cx="680" cy="650" r="5" fill="white" stroke="#9b2020" stroke-width="2"/>
+<text x="315" y="735" font-family="Arial,sans-serif" font-size="25" font-weight="700" fill="#20252b" text-anchor="start">DC POWER IN</text>
+<circle cx="400" cy="760" r="5" fill="white" stroke="#9b2020" stroke-width="2"/>
+<rect x="1050" y="230" width="610" height="335" fill="white" stroke="#9b2020" stroke-width="3"/>
+<text x="1072" y="280" font-family="Arial,sans-serif" font-size="30" font-weight="700" fill="#20252b" text-anchor="start">U2  TOUCHSCREEN MONITOR</text>
+<circle cx="1050" cy="340" r="5" fill="white" stroke="#9b2020" stroke-width="2"/>
+<text x="1080" y="350" font-family="Arial,sans-serif" font-size="25" font-weight="700" fill="#20252b" text-anchor="start">Mini HDMI IN  / VIDEO</text>
+<circle cx="1050" cy="475" r="5" fill="white" stroke="#9b2020" stroke-width="2"/>
+<text x="1080" y="485" font-family="Arial,sans-serif" font-size="25" font-weight="700" fill="#20252b" text-anchor="start">USB-C  / HID TOUCH INPUT</text>
+<text x="1340" y="543" font-family="Arial,sans-serif" font-size="25" font-weight="700" fill="#20252b" text-anchor="start">USB-C POWER</text>
+<circle cx="1510" cy="565" r="5" fill="white" stroke="#9b2020" stroke-width="2"/>
+<rect x="1050" y="695" width="610" height="235" fill="white" stroke="#9b2020" stroke-width="3"/>
+<text x="1072" y="745" font-family="Arial,sans-serif" font-size="30" font-weight="700" fill="#20252b" text-anchor="start">U3  XP-58 THERMAL PRINTER</text>
+<text x="1080" y="779" font-family="Arial,sans-serif" font-size="25" font-weight="400" fill="#20252b" text-anchor="start">58 mm ticket / receipt printer</text>
+<circle cx="1050" cy="830" r="5" fill="white" stroke="#9b2020" stroke-width="2"/>
+<text x="1080" y="839" font-family="Arial,sans-serif" font-size="25" font-weight="700" fill="#20252b" text-anchor="start">USB-B  / DATA INPUT</text>
+<text x="1340" y="909" font-family="Arial,sans-serif" font-size="25" font-weight="700" fill="#20252b" text-anchor="start">DC POWER IN</text>
+<circle cx="1510" cy="930" r="5" fill="white" stroke="#9b2020" stroke-width="2"/>
+<rect x="740" y="300" width="255" height="80" fill="white" stroke="#9b2020" stroke-width="3"/>
+<text x="762" y="350" font-family="Arial,sans-serif" font-size="30" font-weight="700" fill="#20252b" text-anchor="start">DP → HDMI</text>
+<text x="760" y="369" font-family="Arial,sans-serif" font-size="23" font-weight="400" fill="#20252b" text-anchor="start">Adapter / cable</text>
+<polyline points="680,370 715,370 715,340 740,340" fill="none" stroke="#245daa" stroke-width="4"/>
+<polyline points="995,340 1050,340" fill="none" stroke="#245daa" stroke-width="4"/>
+<text x="778" y="426" font-family="Arial,sans-serif" font-size="22" font-weight="400" fill="#245daa" text-anchor="start">HDMI → Mini HDMI</text>
+<polyline points="680,480 875,480 875,475 1050,475" fill="none" stroke="#17843d" stroke-width="4"/>
+<text x="720" y="535" font-family="Arial,sans-serif" font-size="24" font-weight="400" fill="#17843d" text-anchor="start">USB-A → USB-C</text>
+<text x="720" y="563" font-family="Arial,sans-serif" font-size="22" font-weight="400" fill="#17843d" text-anchor="start">Touch data cable</text>
+<polyline points="680,650 860,650 860,830 1050,830" fill="none" stroke="#17843d" stroke-width="4"/>
+<text x="722" y="635" font-family="Arial,sans-serif" font-size="24" font-weight="400" fill="#17843d" text-anchor="start">USB-A → USB-B</text>
+<text x="704" y="712" font-family="Arial,sans-serif" font-size="22" font-weight="400" fill="#17843d" text-anchor="start">Printer USB</text>
+<rect x="190" y="1020" width="420" height="95" fill="white" stroke="#9b2020" stroke-width="3"/>
+<text x="212" y="1070" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#20252b" text-anchor="start">PS1  LENOVO AC/DC ADAPTER</text>
+<text x="210" y="1090" font-family="Arial,sans-serif" font-size="22" font-weight="400" fill="#20252b" text-anchor="start">Original, matching M710q rating</text>
+<polyline points="400,1020 400,760" fill="none" stroke="#bd4d20" stroke-width="4"/>
+<text x="435" y="930" font-family="Arial,sans-serif" font-size="24" font-weight="400" fill="#bd4d20" text-anchor="start">DC power</text>
+<rect x="790" y="1020" width="420" height="95" fill="white" stroke="#9b2020" stroke-width="3"/>
+<text x="812" y="1070" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#20252b" text-anchor="start">PS2  MONITOR AC/DC SUPPLY</text>
+<text x="810" y="1090" font-family="Arial,sans-serif" font-size="22" font-weight="400" fill="#20252b" text-anchor="start">5V USB supply* → USB-C power</text>
+<polyline points="1000,1020 1000,982 1740,982 1740,565 1510,565" fill="none" stroke="#bd4d20" stroke-width="4"/>
+<text x="1685" y="673" font-family="Arial,sans-serif" font-size="24" font-weight="400" fill="#bd4d20" text-anchor="start">DC</text>
+<rect x="1300" y="1020" width="420" height="95" fill="white" stroke="#9b2020" stroke-width="3"/>
+<text x="1322" y="1070" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#20252b" text-anchor="start">PS3  PRINTER AC/DC ADAPTER</text>
+<text x="1320" y="1090" font-family="Arial,sans-serif" font-size="22" font-weight="400" fill="#20252b" text-anchor="start">Match printer voltage + polarity</text>
+<polyline points="1510,1020 1510,930" fill="none" stroke="#bd4d20" stroke-width="4"/>
+<polyline points="400,1115 400,1154" fill="none" stroke="#bd4d20" stroke-width="4"/>
+<circle cx="400" cy="1180" r="26" fill="white" stroke="#9b2020" stroke-width="3"/>
+<polyline points="382,1180.0 383,1178.4371664009977 384,1176.921818710069 385,1175.5 386,1174.2149115128211 387,1173.1056000119293 388,1172.20577136594 389,1171.5427664129268 390,1171.13673022289 391,1171.0 392,1171.13673022289 393,1171.5427664129268 394,1172.20577136594 395,1173.1056000119293 396,1174.2149115128211 397,1175.5 398,1176.921818710069 399,1178.4371664009977 400,1180.0 401,1181.5628335990023 402,1183.078181289931 403,1184.5 404,1185.7850884871789 405,1186.8943999880707 406,1187.79422863406 407,1188.4572335870732 408,1188.86326977711 409,1189.0 410,1188.86326977711 411,1188.4572335870732 412,1187.79422863406 413,1186.8943999880707 414,1185.7850884871789 415,1184.5 416,1183.078181289931 417,1181.5628335990023 418,1180.0" fill="none" stroke="#9b2020" stroke-width="4"/>
+<text x="400" y="1237.0" font-family="Arial,sans-serif" font-size="24" font-weight="400" fill="#20252b" text-anchor="middle">AC wall outlet</text>
+<polyline points="1000,1115 1000,1154" fill="none" stroke="#bd4d20" stroke-width="4"/>
+<circle cx="1000" cy="1180" r="26" fill="white" stroke="#9b2020" stroke-width="3"/>
+<polyline points="982,1180.0 983,1178.4371664009977 984,1176.921818710069 985,1175.5 986,1174.2149115128211 987,1173.1056000119293 988,1172.20577136594 989,1171.5427664129268 990,1171.13673022289 991,1171.0 992,1171.13673022289 993,1171.5427664129268 994,1172.20577136594 995,1173.1056000119293 996,1174.2149115128211 997,1175.5 998,1176.921818710069 999,1178.4371664009977 1000,1180.0 1001,1181.5628335990023 1002,1183.078181289931 1003,1184.5 1004,1185.7850884871789 1005,1186.8943999880707 1006,1187.79422863406 1007,1188.4572335870732 1008,1188.86326977711 1009,1189.0 1010,1188.86326977711 1011,1188.4572335870732 1012,1187.79422863406 1013,1186.8943999880707 1014,1185.7850884871789 1015,1184.5 1016,1183.078181289931 1017,1181.5628335990023 1018,1180.0" fill="none" stroke="#9b2020" stroke-width="4"/>
+<text x="1000" y="1237.0" font-family="Arial,sans-serif" font-size="24" font-weight="400" fill="#20252b" text-anchor="middle">AC wall outlet</text>
+<polyline points="1510,1115 1510,1154" fill="none" stroke="#bd4d20" stroke-width="4"/>
+<circle cx="1510" cy="1180" r="26" fill="white" stroke="#9b2020" stroke-width="3"/>
+<polyline points="1492,1180.0 1493,1178.4371664009977 1494,1176.921818710069 1495,1175.5 1496,1174.2149115128211 1497,1173.1056000119293 1498,1172.20577136594 1499,1171.5427664129268 1500,1171.13673022289 1501,1171.0 1502,1171.13673022289 1503,1171.5427664129268 1504,1172.20577136594 1505,1173.1056000119293 1506,1174.2149115128211 1507,1175.5 1508,1176.921818710069 1509,1178.4371664009977 1510,1180.0 1511,1181.5628335990023 1512,1183.078181289931 1513,1184.5 1514,1185.7850884871789 1515,1186.8943999880707 1516,1187.79422863406 1517,1188.4572335870732 1518,1188.86326977711 1519,1189.0 1520,1188.86326977711 1521,1188.4572335870732 1522,1187.79422863406 1523,1186.8943999880707 1524,1185.7850884871789 1525,1184.5 1526,1183.078181289931 1527,1181.5628335990023 1528,1180.0" fill="none" stroke="#9b2020" stroke-width="4"/>
+<text x="1510" y="1237.0" font-family="Arial,sans-serif" font-size="24" font-weight="400" fill="#20252b" text-anchor="middle">AC wall outlet</text>
+<text x="80" y="1285" font-family="Arial,sans-serif" font-size="23" font-weight="400" fill="#20252b" text-anchor="start">*Use 5V only if the touchscreen power label specifies 5V. Use the correct supplied adapters.</text>
+<text x="80" y="1323" font-family="Arial,sans-serif" font-size="23" font-weight="400" fill="#20252b" text-anchor="start">HDMI carries the picture; USB carries touch input. The printer requires its own power supply.</text>
+</svg>

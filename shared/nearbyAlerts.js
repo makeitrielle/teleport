@@ -1,19 +1,12 @@
 import { gpsOnline, validCoordinates, haversineMeters } from "./proximity.js";
-import { isSeatMonitored } from "./seatPolicy.js";
+import { seatDisplayState } from "./seatPolicy.js";
 
 export function seatAvailability(bus, now = Date.now()) {
   const counts = { available: 0, unavailable: 0, unknown: 0 };
   for (const seat of bus.seats || []) {
-    const fresh =
-      isSeatMonitored(bus, seat.id) &&
-      seat.sensor === "ok" &&
-      Number.isFinite(seat.sensorUpdatedAt) &&
-      now - seat.sensorUpdatedAt >= 0 &&
-      now - seat.sensorUpdatedAt <= 90000 &&
-      ["available", "occupied"].includes(seat.occupancy);
-    if (seat.status === "booked" || (fresh && seat.occupancy === "occupied"))
-      counts.unavailable++;
-    else if (fresh) counts.available++;
+    const state = seatDisplayState(bus, seat, now);
+    if (state === "reserved" || state === "occupied") counts.unavailable++;
+    else if (state === "available") counts.available++;
     else counts.unknown++;
   }
   return counts;

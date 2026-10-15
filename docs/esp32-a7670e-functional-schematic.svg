@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 1450" width="2000" height="1450">
+<rect width="100%" height="100%" fill="white"/>
+<text x="65" y="66" font-family="Arial,sans-serif" font-size="34" font-weight="700" fill="#172b89">ESP32-WROVER-E + A7670E — LILYGO BOARD REPRESENTATION</text>
+<text x="65" y="114" font-family="Arial,sans-serif" font-size="23" font-weight="400" fill="#222222">Functional schematic for documentation; interface and power circuits are grouped into blocks.</text>
+<text x="65" y="153" font-family="Arial,sans-serif" font-size="21" font-weight="400" fill="#bd2525">Modem symbol pin numbers must be checked against the exact A7670E library / datasheet.</text>
+<rect x="100" y="260" width="430" height="730" fill="#ffffd7" stroke="#bd2525" stroke-width="2"/>
+<text x="115" y="300" font-family="Arial,sans-serif" font-size="25" font-weight="700" fill="#172b89">U1  ESP32-WROVER-E</text>
+<text x="115" y="332" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">3.3V logic / your tracker firmware</text>
+<rect x="1110" y="225" width="520" height="775" fill="#ffffd7" stroke="#bd2525" stroke-width="2"/>
+<text x="1125" y="265" font-family="Arial,sans-serif" font-size="25" font-weight="700" fill="#172b89">U2  A7670E MODEM</text>
+<text x="1125" y="297" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">GNSS-enabled variant in your setup</text>
+<rect x="660" y="290" width="290" height="290" fill="#ffffd7" stroke="#bd2525" stroke-width="2"/>
+<text x="675" y="326" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#172b89">U3  UART INTERFACE</text>
+<text x="675" y="362" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">3.3V ↔ modem I/O level</text>
+<circle cx="530" cy="390" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="350" y="397" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">GPIO26 / ESP TX</text>
+<circle cx="1110" cy="390" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="1125" y="397" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">UART_RXD</text>
+<polyline points="530,390 660,390" fill="none" stroke="#87385f" stroke-width="2"/>
+<polyline points="950,390 1110,390" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="710" y="398" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#172b89">TX → RX</text>
+<circle cx="530" cy="435" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="350" y="442" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">GPIO27 / ESP RX</text>
+<circle cx="1110" cy="435" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="1125" y="442" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">UART_TXD</text>
+<polyline points="530,435 660,435" fill="none" stroke="#87385f" stroke-width="2"/>
+<polyline points="950,435 1110,435" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="710" y="443" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#172b89">RX ← TX</text>
+<circle cx="530" cy="480" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="350" y="487" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">GPIO25 / DTR</text>
+<circle cx="1110" cy="480" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="1125" y="487" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">UART_DTR</text>
+<polyline points="530,480 660,480" fill="none" stroke="#87385f" stroke-width="2"/>
+<polyline points="950,480 1110,480" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="710" y="488" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#172b89">DTR →</text>
+<text x="670" y="627" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#222222">Uses onboard level translation</text>
+<rect x="660" y="650" width="290" height="195" fill="#ffffd7" stroke="#bd2525" stroke-width="2"/>
+<text x="675" y="686" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#172b89">U4  CONTROL DRIVERS</text>
+<text x="675" y="722" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">Open-drain / board circuitry</text>
+<circle cx="530" cy="765" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="350" y="772" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">GPIO4</text>
+<circle cx="1110" cy="765" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="1125" y="772" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">PWRKEY</text>
+<polyline points="530,765 660,765" fill="none" stroke="#87385f" stroke-width="2"/>
+<polyline points="950,765 1110,765" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="700" y="772" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">Power control</text>
+<circle cx="530" cy="810" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="350" y="817" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">GPIO5</text>
+<circle cx="1110" cy="810" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="1125" y="817" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">RESET</text>
+<polyline points="530,810 660,810" fill="none" stroke="#87385f" stroke-width="2"/>
+<polyline points="950,810 1110,810" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="700" y="817" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">Modem reset</text>
+<rect x="660" y="910" width="290" height="180" fill="#ffffd7" stroke="#bd2525" stroke-width="2"/>
+<text x="675" y="946" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#172b89">U5  MODEM POWER</text>
+<text x="675" y="982" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">Board supply / enable circuit</text>
+<circle cx="530" cy="965" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="350" y="972" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">GPIO12 / ENABLE</text>
+<polyline points="530,965 610,965 610,1010 660,1010" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="685" y="1019" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">Regulated VBAT rail</text>
+<circle cx="1110" cy="920" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="1125" y="927" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">VBAT (all supply pins)</text>
+<polyline points="950,1010 1020,1010 1020,920 1110,920" fill="none" stroke="#87385f" stroke-width="2"/>
+<circle cx="315" cy="260" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<polyline points="315,260 315,202" fill="none" stroke="#bd2525" stroke-width="2"/>
+<text x="248" y="194" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#172b89">3V3 rail</text>
+<circle cx="315" cy="990" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<circle cx="1370" cy="1000" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<polyline points="315,990 315,1160 1370,1160 1370,1000" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="270" y="966" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#172b89">GND</text>
+<text x="1320" y="975" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#172b89">GND (all ground pins)</text>
+<polyline points="900,1160 900,1174" fill="none" stroke="#bd2525" stroke-width="2"/>
+<polyline points="886,1174 914,1174" fill="none" stroke="#bd2525" stroke-width="2"/>
+<polyline points="891,1180 909,1180" fill="none" stroke="#bd2525" stroke-width="2"/>
+<polyline points="896,1186 904,1186" fill="none" stroke="#bd2525" stroke-width="2"/>
+<text x="865" y="1211" font-family="Arial,sans-serif" font-size="17" font-weight="400" fill="#172b89">GND</text>
+<circle cx="1630" cy="350" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="1450" y="357" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">ANT / LTE</text>
+<polyline points="1630,350 1770,350" fill="none" stroke="#87385f" stroke-width="2"/>
+<polyline points="1770,350 1770,300 1747,273 1793,273 1770,300" fill="none" stroke="#bd2525" stroke-width="2"/>
+<text x="1732" y="255" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#172b89">LTE</text>
+<circle cx="1630" cy="490" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="1450" y="497" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">GNSS RF path*</text>
+<polyline points="1630,490 1870,490" fill="none" stroke="#87385f" stroke-width="2"/>
+<polyline points="1870,490 1870,440 1847,413 1893,413 1870,440" fill="none" stroke="#bd2525" stroke-width="2"/>
+<text x="1832" y="395" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#172b89">GPS</text>
+<rect x="1750" y="650" width="195" height="300" fill="#ffffd7" stroke="#bd2525" stroke-width="2"/>
+<text x="1765" y="686" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#172b89">J1  SIM CARD</text>
+<text x="1765" y="722" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">Nano SIM socket</text>
+<circle cx="1630" cy="740" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="1450" y="747" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">SIM_VDD</text>
+<circle cx="1750" cy="740" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<polyline points="1630,740 1750,740" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="1765" y="746" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#172b89">VDD</text>
+<circle cx="1630" cy="780" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="1450" y="787" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">SIM_DATA</text>
+<circle cx="1750" cy="780" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<polyline points="1630,780 1750,780" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="1765" y="786" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#172b89">DATA</text>
+<circle cx="1630" cy="820" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="1450" y="827" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">SIM_CLK</text>
+<circle cx="1750" cy="820" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<polyline points="1630,820 1750,820" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="1765" y="826" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#172b89">CLK</text>
+<circle cx="1630" cy="860" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="1450" y="867" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">SIM_RST</text>
+<circle cx="1750" cy="860" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<polyline points="1630,860 1750,860" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="1765" y="866" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#172b89">RST</text>
+<circle cx="1630" cy="920" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<text x="1450" y="927" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">GND</text>
+<circle cx="1750" cy="920" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<polyline points="1630,920 1750,920" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="1765" y="926" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#172b89">GND</text>
+<circle cx="805" cy="1090" r="4" fill="white" stroke="#bd2525" stroke-width="2"/>
+<polyline points="805,1090 805,1130" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="835" y="1118" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#172b89">Board supply</text>
+<polyline points="65,1245 1940,1245" fill="none" stroke="#18546d" stroke-width="2"/>
+<text x="65" y="1292" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#172b89">IMPORTANT</text>
+<text x="65" y="1325" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#222222">1. This represents connections already inside the LilyGO board; it is not a bare-module PCB construction schematic.</text>
+<text x="65" y="1356" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#222222">2. *Your screenshot shows ANT only. Add the separate GNSS antenna connector / RF circuitry from the exact board design.</text>
+<text x="65" y="1387" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#222222">3. Unused UART2, audio, USB, status and modem GPIO signals are omitted. Do not connect modem VBAT to ESP32 3V3.</text>
+</svg>

@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 1450" width="2000" height="1450">
+<rect width="100%" height="100%" fill="white"/>
+<text x="70" y="78" font-family="Arial,sans-serif" font-size="38" font-weight="700" fill="#172b89">TELE-PORT KIOSK — CONNECTOR-LEVEL SCHEMATIC</text>
+<text x="70" y="122" font-family="Arial,sans-serif" font-size="25" font-weight="400" fill="#172b89">ThinkCentre M710q / touchscreen / XP-58 thermal printer</text>
+<text x="70" y="159" font-family="Arial,sans-serif" font-size="21" font-weight="400" fill="#222222">Original equipment-interconnection drawing. Internal PC, monitor and adapter circuitry is not represented.</text>
+<rect x="630" y="235" width="420" height="925" fill="none" stroke="#172b89" stroke-width="2"/>
+<text x="648" y="277" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#172b89">U1  THINKCENTRE M710q</text>
+<text x="648" y="307" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">Kiosk computer / USB host</text>
+<rect x="1450" y="245" width="490" height="395" fill="none" stroke="#172b89" stroke-width="2"/>
+<text x="1468" y="287" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#172b89">U2  TOUCHSCREEN MONITOR</text>
+<text x="1468" y="317" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">Mini HDMI + USB-C touch / power</text>
+<rect x="1450" y="770" width="490" height="370" fill="#ffffce" stroke="#a82424" stroke-width="2"/>
+<text x="1468" y="812" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#172b89">U3  XP-58 THERMAL PRINTER</text>
+<text x="1468" y="842" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">USB interface / separate DC supply</text>
+<text x="655" y="366" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#172b89">J1  DC INPUT</text>
+<circle cx="630" cy="400" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="645" y="407" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">DC + / supplied adapter</text>
+<circle cx="630" cy="440" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="645" y="447" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">DC return</text>
+<rect x="145" y="325" width="300" height="170" fill="none" stroke="#172b89" stroke-width="2"/>
+<text x="163" y="365" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#172b89">PS1  LENOVO ADAPTER</text>
+<text x="145" y="539" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">Original M710q-rated adapter</text>
+<circle cx="80" cy="400" r="26" fill="none" stroke="#a82424" stroke-width="2"/>
+<polyline points="63,400.0 64,398.34625433965084 65,396.7488250043156 66,395.2621105341038 67,393.936739207181 68,392.81784495447783 69,391.94353037780445 70,391.3435692114446 71,391.0383924133447 72,391.0383924133447 73,391.3435692114446 74,391.94353037780445 75,392.81784495447783 76,393.936739207181 77,395.2621105341038 78,396.7488250043156 79,398.34625433965084 80,400.0 81,401.65374566034916 82,403.2511749956844 83,404.7378894658962 84,406.063260792819 85,407.18215504552217 86,408.05646962219555 87,408.6564307885554 88,408.9616075866553 89,408.9616075866553 90,408.6564307885554 91,408.05646962219555 92,407.18215504552217 93,406.063260792819 94,404.7378894658962 95,403.2511749956844 96,401.6537456603491 97,400.0" fill="none" stroke="#a82424" stroke-width="2"/>
+<text x="55" y="354" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#172b89">AC</text>
+<polyline points="106,400 145,400" fill="none" stroke="#87385f" stroke-width="2"/>
+<circle cx="445" cy="400" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="265" y="407" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">DC +</text>
+<circle cx="445" cy="440" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="265" y="447" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">DC -</text>
+<polyline points="445,400 630,400" fill="none" stroke="#87385f" stroke-width="2"/>
+<polyline points="445,440 630,440" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="800" y="333" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#172b89">J2  DisplayPort</text>
+<circle cx="1050" cy="355" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="870" y="362" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">DP VIDEO OUT</text>
+<rect x="1130" y="315" width="245" height="90" fill="none" stroke="#172b89" stroke-width="2"/>
+<text x="1148" y="357" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#172b89">U4  DP → HDMI</text>
+<text x="1148" y="387" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">Video conversion</text>
+<polyline points="1050,355 1130,355" fill="none" stroke="#87385f" stroke-width="2"/>
+<polyline points="1375,355 1450,355" fill="none" stroke="#87385f" stroke-width="2"/>
+<circle cx="1450" cy="355" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="1465" y="362" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">J5  MINI HDMI IN</text>
+<text x="1100" y="286" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#87385f">VIDEO BUS</text>
+<text x="1110" y="444" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#222222">HDMI → Mini HDMI cable</text>
+<text x="785" y="485" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#172b89">J3  USB-A (touch)</text>
+<text x="1470" y="435" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#172b89">J6  USB-C (touch data)</text>
+<circle cx="1050" cy="500" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="870" y="507" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">1  VBUS</text>
+<circle cx="1450" cy="500" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="1465" y="507" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">VBUS</text>
+<polyline points="1050,500 1450,500" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="1160" y="493" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#87385f">TOUCH_VBUS</text>
+<circle cx="1050" cy="530" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="870" y="537" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">2  D-</text>
+<circle cx="1450" cy="530" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="1465" y="537" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">D-</text>
+<polyline points="1050,530 1450,530" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="1160" y="523" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#87385f">TOUCH_DN</text>
+<circle cx="1050" cy="560" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="870" y="567" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">3  D+</text>
+<circle cx="1450" cy="560" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="1465" y="567" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">D+</text>
+<polyline points="1050,560 1450,560" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="1160" y="553" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#87385f">TOUCH_DP</text>
+<circle cx="1050" cy="590" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="870" y="597" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">4  GND</text>
+<circle cx="1450" cy="590" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="1465" y="597" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">GND</text>
+<polyline points="1050,590 1450,590" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="1160" y="583" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#87385f">TOUCH_GND</text>
+<text x="780" y="826" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#172b89">J4  USB-A (printer)</text>
+<text x="1470" y="871" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#172b89">J8  USB-B (printer data)</text>
+<circle cx="1050" cy="895" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="870" y="902" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">1  VBUS</text>
+<circle cx="1450" cy="895" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="1465" y="902" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">1  VBUS</text>
+<polyline points="1050,895 1450,895" fill="none" stroke="#188432" stroke-width="2"/>
+<text x="1160" y="888" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#87385f">PRINT_VBUS</text>
+<circle cx="1050" cy="925" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="870" y="932" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">2  D-</text>
+<circle cx="1450" cy="925" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="1465" y="932" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">2  D-</text>
+<polyline points="1050,925 1450,925" fill="none" stroke="#188432" stroke-width="2"/>
+<text x="1160" y="918" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#87385f">PRINT_DN</text>
+<circle cx="1050" cy="955" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="870" y="962" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">3  D+</text>
+<circle cx="1450" cy="955" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="1465" y="962" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">3  D+</text>
+<polyline points="1050,955 1450,955" fill="none" stroke="#188432" stroke-width="2"/>
+<text x="1160" y="948" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#87385f">PRINT_DP</text>
+<circle cx="1050" cy="985" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="870" y="992" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">4  GND</text>
+<circle cx="1450" cy="985" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<text x="1465" y="992" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">4  GND</text>
+<polyline points="1050,985 1450,985" fill="none" stroke="#188432" stroke-width="2"/>
+<text x="1160" y="978" font-family="Arial,sans-serif" font-size="18" font-weight="400" fill="#87385f">PRINT_GND</text>
+<text x="1100" y="1050" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#222222">Standard USB-A → USB-B cable</text>
+<rect x="145" y="665" width="300" height="185" fill="none" stroke="#172b89" stroke-width="2"/>
+<text x="163" y="705" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#172b89">PS2  MONITOR SUPPLY</text>
+<text x="163" y="737" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">5V USB adapter*</text>
+<circle cx="80" cy="755" r="26" fill="none" stroke="#a82424" stroke-width="2"/>
+<polyline points="63,755.0 64,753.3462543396508 65,751.7488250043157 66,750.2621105341038 67,748.936739207181 68,747.8178449544779 69,746.9435303778044 70,746.3435692114447 71,746.0383924133447 72,746.0383924133447 73,746.3435692114447 74,746.9435303778044 75,747.8178449544779 76,748.936739207181 77,750.2621105341038 78,751.7488250043157 79,753.3462543396508 80,755.0 81,756.6537456603492 82,758.2511749956843 83,759.7378894658962 84,761.063260792819 85,762.1821550455221 86,763.0564696221956 87,763.6564307885553 88,763.9616075866553 89,763.9616075866553 90,763.6564307885553 91,763.0564696221956 92,762.1821550455221 93,761.063260792819 94,759.7378894658962 95,758.2511749956843 96,756.6537456603492 97,755.0" fill="none" stroke="#a82424" stroke-width="2"/>
+<text x="55" y="709" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#172b89">AC</text>
+<polyline points="106,755 145,755" fill="none" stroke="#87385f" stroke-width="2"/>
+<circle cx="445" cy="735" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<polyline points="445,735 475,735" fill="none" stroke="#87385f" stroke-width="2"/>
+<polyline points="475,735 483,728 493,728 493,742 483,742 475,735" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="500" y="739" font-family="Arial,sans-serif" font-size="17" font-weight="700" fill="#87385f">TS_PWR+</text>
+<circle cx="445" cy="785" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<polyline points="445,785 475,785" fill="none" stroke="#87385f" stroke-width="2"/>
+<polyline points="475,785 483,778 493,778 493,792 483,792 475,785" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="500" y="789" font-family="Arial,sans-serif" font-size="17" font-weight="700" fill="#87385f">TS_RETURN</text>
+<text x="1500" y="737" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#172b89">J7  USB-C POWER INPUT</text>
+<circle cx="1590" cy="640" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<polyline points="1590,640 1590,670" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="1530" y="699" font-family="Arial,sans-serif" font-size="19" font-weight="700" fill="#87385f">TS_PWR+</text>
+<circle cx="1800" cy="640" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<polyline points="1800,640 1800,670" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="1740" y="699" font-family="Arial,sans-serif" font-size="19" font-weight="700" fill="#87385f">TS_RETURN</text>
+<rect x="145" y="960" width="300" height="185" fill="none" stroke="#172b89" stroke-width="2"/>
+<text x="163" y="1000" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#172b89">PS3  PRINTER SUPPLY</text>
+<text x="163" y="1032" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">Use printer-rated adapter</text>
+<circle cx="80" cy="1050" r="26" fill="none" stroke="#a82424" stroke-width="2"/>
+<polyline points="63,1050.0 64,1048.3462543396508 65,1046.7488250043157 66,1045.2621105341038 67,1043.936739207181 68,1042.8178449544778 69,1041.9435303778043 70,1041.3435692114447 71,1041.0383924133446 72,1041.0383924133446 73,1041.3435692114447 74,1041.9435303778043 75,1042.8178449544778 76,1043.936739207181 77,1045.2621105341038 78,1046.7488250043157 79,1048.3462543396508 80,1050.0 81,1051.6537456603492 82,1053.2511749956843 83,1054.7378894658962 84,1056.063260792819 85,1057.1821550455222 86,1058.0564696221957 87,1058.6564307885553 88,1058.9616075866554 89,1058.9616075866554 90,1058.6564307885553 91,1058.0564696221957 92,1057.1821550455222 93,1056.063260792819 94,1054.7378894658962 95,1053.2511749956843 96,1051.6537456603492 97,1050.0" fill="none" stroke="#a82424" stroke-width="2"/>
+<text x="55" y="1004" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#172b89">AC</text>
+<polyline points="106,1050 145,1050" fill="none" stroke="#87385f" stroke-width="2"/>
+<circle cx="445" cy="1030" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<polyline points="445,1030 475,1030" fill="none" stroke="#87385f" stroke-width="2"/>
+<polyline points="475,1030 483,1023 493,1023 493,1037 483,1037 475,1030" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="500" y="1034" font-family="Arial,sans-serif" font-size="17" font-weight="700" fill="#87385f">PRN_PWR+</text>
+<circle cx="445" cy="1080" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<polyline points="445,1080 475,1080" fill="none" stroke="#87385f" stroke-width="2"/>
+<polyline points="475,1080 483,1073 493,1073 493,1087 483,1087 475,1080" fill="none" stroke="#87385f" stroke-width="2"/>
+<text x="500" y="1084" font-family="Arial,sans-serif" font-size="17" font-weight="700" fill="#87385f">PRN_RETURN</text>
+<text x="1480" y="1251" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#172b89">J9  PRINTER DC INPUT</text>
+<text x="1540" y="1111" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">DC +</text>
+<text x="1740" y="1111" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#172b89">DC return</text>
+<circle cx="1590" cy="1140" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<polyline points="1590,1140 1590,1168" fill="none" stroke="#188432" stroke-width="2"/>
+<text x="1525" y="1199" font-family="Arial,sans-serif" font-size="19" font-weight="700" fill="#87385f">PRN_PWR+</text>
+<circle cx="1800" cy="1140" r="4" fill="white" stroke="#a82424" stroke-width="2"/>
+<polyline points="1800,1140 1800,1168" fill="none" stroke="#188432" stroke-width="2"/>
+<text x="1735" y="1199" font-family="Arial,sans-serif" font-size="19" font-weight="700" fill="#87385f">PRN_RETURN</text>
+<polyline points="715,1210 715,1224" fill="none" stroke="#a82424" stroke-width="2"/>
+<polyline points="701,1224 729,1224" fill="none" stroke="#a82424" stroke-width="2"/>
+<polyline points="706,1230 724,1230" fill="none" stroke="#a82424" stroke-width="2"/>
+<polyline points="711,1236 719,1236" fill="none" stroke="#a82424" stroke-width="2"/>
+<text x="680" y="1261" font-family="Arial,sans-serif" font-size="17" font-weight="400" fill="#172b89">DC return</text>
+<text x="780" y="1255" font-family="Arial,sans-serif" font-size="19" font-weight="400" fill="#222222">Return symbols / names mean DC negative; they are not AC protective earth.</text>
+<polyline points="70,1290 1940,1290" fill="none" stroke="#172b89" stroke-width="2"/>
+<text x="70" y="1332" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#172b89">NOTES</text>
+<text x="70" y="1365" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#222222">1. Matching net labels are electrically connected. Cable shields and USB-C CC contacts are omitted.</text>
+<text x="70" y="1396" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#222222">2. USB pin numbers apply to Type-A / Type-B USB 2.0 contacts. Use complete commercial cables, not loose wires.</text>
+<text x="70" y="1427" font-family="Arial,sans-serif" font-size="20" font-weight="400" fill="#222222">3. *Use 5V only when the monitor specifies 5V. Printer power comes from PS3, not from USB VBUS.</text>
+</svg>
