@@ -46,7 +46,8 @@ export function seatDisplayState(bus, seat, now = Date.now()) {
     now - seat.sensorUpdatedAt >= 0 &&
     now - seat.sensorUpdatedAt <= 90000 &&
     ["available", "occupied"].includes(seat.occupancy);
-  if (fresh && seat.occupancy === "occupied") return "occupied";
+  if (fresh && (seat.occupancy === "occupied" || seat.occupiedHoldUntil > now))
+    return "occupied";
   if (seat.status === "booked") return "reserved";
   return fresh ? "available" : "offline";
 }

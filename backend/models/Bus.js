@@ -12,6 +12,24 @@ const SeatSchema = new mongoose.Schema(
     sensor: { type: String, enum: ["ok", "fault"], default: "ok" },
     // Updated only by hardware telemetry, never by ticket sales.
     sensorUpdatedAt: { type: Number, default: null },
+    sensorObservedAt: { type: Number, default: null },
+    sensorRevision: { type: Number, default: 0 },
+    occupancyChangedAt: { type: Number, default: null },
+    lastOccupiedAt: { type: Number, default: null },
+    occupiedHoldUntil: { type: Number, default: null },
+    verificationTicketId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Ticket",
+      default: null,
+    },
+    verificationAt: { type: Date, default: null },
+    allocationTicketId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Ticket",
+      default: null,
+    },
+    // Durable audit outbox: written atomically with a sensor transition.
+    pendingSensorEvent: { type: mongoose.Schema.Types.Mixed, default: null },
     updatedAt: { type: Number, default: () => Date.now() },
   },
   { _id: false },

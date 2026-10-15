@@ -583,6 +583,21 @@ dd {
 .seat strong {
   font-size: 18px;
 }
+.occupancy-warning {
+  padding: 8px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.seat form {
+  min-width: 0;
+}
+.seat input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
 .table-wrap {
   overflow: auto;
 }

@@ -33,7 +33,7 @@ flowchart LR
     C2 --> M1
     C3 --> M1
     C4 --> M1
-    ADDR[Mega D22 D23 D24 D25] -->|shared S0 S1 S2 S3| M1
+    ADDR[Mega D26 D27 D28 D29] -->|shared S0 S1 S2 S3| M1
     ADDR --> M2
     ADDR --> M3
     ADDR --> M4
@@ -79,7 +79,7 @@ flowchart LR
 |---|---|
 | Common ground | Join Mega GND, all mux GND, LilyGO GND, DFPlayer GND, and the negative terminal of the DFPlayer supply. |
 | Mux power | Each mux VCC to Mega regulated 5V. Each mux EN to GND (enable is active LOW). |
-| Mux address | Mega D22 -> S0, D23 -> S1, D24 -> S2, D25 -> S3 on all four muxes in parallel. |
+| Mux address | Mega D26 -> S0, D27 -> S1, D28 -> S2, D29 -> S3 on all four muxes in parallel. |
 | Mux SIG | MUX1 SIG -> A0, MUX2 -> A1, MUX3 -> A2, MUX4 -> A3. Firmware configures these as `INPUT_PULLUP`. |
 | Sensors 1-5 | Sensor 1 lead 1 -> MUX1 CH0, sensor 2 -> CH1, through sensor 5 -> CH4. The other lead of each mat -> common GND. Lead polarity does not matter. |
 | Mega to LilyGO UART | Mega TX1 D18 -> 10 kohm resistor -> GPIO21 RX; GPIO21 RX -> 20 kohm resistor -> GND. This divider reduces the Mega's 5V TX signal to about 3.3V. |

@@ -118,6 +118,14 @@ const seatStateLabels = {
   occupied: "Occupied",
   offline: "Sensor unavailable",
 };
+const occupancyWarnings = {
+  occupied_without_reservation:
+    "Occupied without a valid reservation — conductor must check.",
+  occupant_not_verified:
+    "Reserved seat occupied — verify the passenger's ticket.",
+  wrong_seat:
+    "Occupancy conflict — the checked ticket does not assign this seat.",
+};
 const markerIcon = L.divIcon({
   className: "bus-marker",
   html: "●",
@@ -2615,6 +2623,7 @@ function Activity({ run, refresh, passenger = false }) {
             ["reference", "Booking reference", "text"],
             ["ticketNumber", "Ticket number", "text"],
             ["busId", "Bus ID", "text"],
+            ["seatId", "Seat number", "number"],
           ].map(([k, label, type]) => (
             <Field
               key={k}
@@ -2687,7 +2696,10 @@ function Activity({ run, refresh, passenger = false }) {
                   <td>{date(a.createdAt)}</td>
                   <td>{a.event}</td>
                   <td>{a.reference || "—"}</td>
-                  <td>{a.busId?.busId || "—"}</td>
+                  <td>
+                    {a.busId?.busId || "—"}
+                    {a.seatId ? ` · Seat ${a.seatId}` : ""}
+                  </td>
                   <td>
                     <Pill>{a.outcome}</Pill>
                     {a.detail && (
@@ -3216,6 +3228,34 @@ function Tracking({ run, refresh, passenger = false, nearby }) {
                     </div>
                   </div>
                 )}
+                {!passenger && (
+                  <details open>
+                    <summary>Seat monitoring</summary>
+                    <p>
+                      Pressure detects occupancy, not identity. Conductors
+                      verify tickets in Management → Buses.
+                    </p>
+                    <div className="seat-grid">
+                      {(b.seats || []).map((s) => (
+                        <div
+                          key={s.id}
+                          className={`seat seat-${seatDisplayState(b, s)}`}
+                        >
+                          <strong>Seat {s.id}</strong>
+                          <span>{seatStateLabels[seatDisplayState(b, s)]}</span>
+                          {s.occupancyChangedAt && (
+                            <small>{date(s.occupancyChangedAt)}</small>
+                          )}
+                          {s.occupancyWarning && (
+                            <p className="occupancy-warning">
+                              {occupancyWarnings[s.occupancyWarning]}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
                 <details open={!passenger}>
                   <summary>GPS details</summary>
                   {passenger && (
@@ -3328,7 +3368,7 @@ function Management({
           .getBuses()
           .then((b) => active && setBuses(b))
           .catch(() => {}),
-      10000,
+      2000,
     );
     return () => {
       active = false;
@@ -3593,15 +3633,41 @@ function Management({
               </p>
               <div className="seat-grid">
                 {b.seats.map((s) => {
-                  const fresh =
-                    s.sensor === "ok" &&
-                    s.sensorUpdatedAt &&
-                    Date.now() - new Date(s.sensorUpdatedAt) < 90000;
+                  const state = seatDisplayState(b, s);
                   return (
-                    <div key={s.id} className="seat">
+                    <div key={s.id} className={`seat seat-${state}`}>
                       <strong>{s.id}</strong>
-                      <span>{fresh ? s.occupancy : "Sensor unavailable"}</span>
-                      <small>Walk-up reservation: {s.status}</small>
+                      <span>{seatStateLabels[state]}</span>
+                      {s.occupancyChangedAt && (
+                        <small>
+                          Sensor changed: {date(s.occupancyChangedAt)}
+                        </small>
+                      )}
+                      {s.occupancyWarning && (
+                        <p className="occupancy-warning" role="status">
+                          {occupancyWarnings[s.occupancyWarning]}
+                        </p>
+                      )}
+                      {state === "occupied" && !s.occupantVerified && (
+                        <form
+                          onSubmit={submit((f) =>
+                            call(
+                              `/buses/${b._id}/seats/${s.id}/verify-occupant`,
+                              f,
+                            ),
+                          )}
+                        >
+                          <Field
+                            label="Conductor: ticket QR reference"
+                            name="reference"
+                            required
+                          />
+                          <button>Check occupant</button>
+                        </form>
+                      )}
+                      {state === "occupied" && s.occupantVerified && (
+                        <small>Ticket checked by staff</small>
+                      )}
                     </div>
                   );
                 })}

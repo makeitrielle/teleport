@@ -3,7 +3,7 @@ import Ticket from "./models/Ticket.js";
 import Bus from "./models/Bus.js";
 import { activeTicketFilter } from "./ticketValidity.js";
 // Reservations and physical occupancy are independent. Both monitors use this view.
-export async function withReservationStatus(buses) {
+export async function withReservationStatus(buses, { staff = false } = {}) {
   const reservations = await Ticket.find({
     busId: { $in: buses.map((bus) => bus._id) },
     ...activeTicketFilter(),
@@ -21,9 +21,80 @@ export async function withReservationStatus(buses) {
         ...seat,
         status: reserved.has(`${bus._id}:${seat.id}`) ? "booked" : "available",
       };
-      return { ...allocated, displayState: seatDisplayState(bus, allocated) };
+      const displayState = seatDisplayState(bus, allocated);
+      const tickets = reservations.filter(
+        (t) => String(t.busId) === String(bus._id) && t.seatId === seat.id,
+      );
+      const verified = tickets.some(
+        (t) => String(t._id) === String(seat.verificationTicketId),
+      );
+      const warning =
+        displayState !== "occupied"
+          ? null
+          : seat.verificationTicketId && !verified
+            ? "wrong_seat"
+            : !tickets.length
+              ? "occupied_without_reservation"
+              : !verified
+                ? "occupant_not_verified"
+                : null;
+      const {
+        verificationTicketId,
+        verificationAt,
+        sensorRevision,
+        allocationTicketId,
+        pendingSensorEvent,
+        ...publicSeat
+      } = allocated;
+      return {
+        ...publicSeat,
+        displayState,
+        ...(staff
+          ? {
+              occupancyWarning: warning,
+              occupantVerified: verified,
+              verificationAt,
+            }
+          : {}),
+      };
     }),
   }));
+}
+
+// Release allocation after completion/cancellation only. A sensor never calls
+// this. The ticket-bound lock prevents clearing a newer sale during a race.
+export async function releaseTicketSeat(ticket) {
+  if (!Number.isInteger(ticket.seatId)) return;
+  if (
+    await Ticket.exists({
+      _id: { $ne: ticket._id },
+      busId: ticket.busId,
+      seatId: ticket.seatId,
+      ...activeTicketFilter(),
+    })
+  )
+    return;
+  await Bus.updateOne(
+    {
+      _id: ticket.busId,
+      seats: {
+        $elemMatch: {
+          id: ticket.seatId,
+          status: "booked",
+          $or: [
+            { allocationTicketId: ticket._id },
+            { allocationTicketId: null },
+          ],
+        },
+      },
+    },
+    {
+      $set: {
+        "seats.$.status": "available",
+        "seats.$.allocationTicketId": null,
+      },
+    },
+  );
 }
 
 // Run before accepting requests. Restore allocation flags from saved tickets,

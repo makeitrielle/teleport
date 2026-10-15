@@ -6,10 +6,10 @@ This setup uses an Arduino Mega 2560, 61 two-wire FLEXKYS seat pressure mats, fo
 
 Use four mux boards. Connect Mega 5V to each mux VCC, Mega GND to each mux GND, and tie each mux EN pin to GND (enabled). Share the four address lines across all boards:
 
-- Mega D22 → S0
-- Mega D23 → S1
-- Mega D24 → S2
-- Mega D25 → S3
+- Mega D26 → S0
+- Mega D27 → S1
+- Mega D28 → S2
+- Mega D29 → S3
 
 Connect the four mux SIG pins to Mega A0, A1, A2, and A3 respectively.
 

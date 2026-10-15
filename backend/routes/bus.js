@@ -10,6 +10,8 @@ import Ticket from "../models/Ticket.js";
 import { activeTicketFilter } from "../ticketValidity.js";
 import { voiceClipFor } from "../voiceClips.js";
 import { authenticateDevice, updateProximity } from "../tracking.js";
+import { applySeatTelemetry } from "../seatTelemetry.js";
+import { withReservationStatus } from "../reservationSeats.js";
 
 const router = express.Router();
 router.use(authenticateDevice);
@@ -25,7 +27,7 @@ async function findTheBus(req) {
 router.get("/current", async (req, res) => {
   const bus = await findTheBus(req);
   if (!bus) return res.status(404).json({ error: "No bus is configured yet" });
-  res.json(bus);
+  res.json((await withReservationStatus([bus.toObject()]))[0]);
 });
 
 // POST /api/bus/location - the ESP32's onboard GPS fix, sent over WiFi
@@ -121,7 +123,7 @@ router.post("/location", async (req, res) => {
 router.get("/seats", async (req, res) => {
   const bus = await findTheBus(req);
   if (!bus) return res.status(404).json({ error: "No bus is configured yet" });
-  res.json(bus.seats);
+  res.json((await withReservationStatus([bus.toObject()]))[0].seats);
 });
 
 // POST /api/bus/seats - the ESP32's physical seat sensor reading(s).
@@ -131,28 +133,14 @@ router.post("/seats", async (req, res) => {
   const bus = await findTheBus(req);
   if (!bus) return res.status(404).json({ error: "No bus is configured yet" });
 
-  const { seatId, status, sensor } = req.body;
-  const seat = bus.seats.find((s) => s.id === Number(seatId));
-  if (!seat)
-    return res
-      .status(404)
-      .json({ error: `Seat ${seatId} not found on this bus` });
-
-  if (status === "available" || status === "booked") {
-    seat.occupancy = status === "booked" ? "occupied" : "available";
-    seat.sensor = "ok";
-  } else if (sensor === "fault") {
-    seat.sensor = "fault";
-  } else {
-    return res
-      .status(400)
-      .json({ error: "Provide a valid seat status or sensor fault report." });
+  try {
+    const result = await applySeatTelemetry(bus._id, req.body);
+    res.json((await withReservationStatus([result.bus]))[0].seats);
+  } catch (error) {
+    if (error.status)
+      return res.status(error.status).json({ error: error.message });
+    throw error;
   }
-  seat.sensorUpdatedAt = Date.now();
-  seat.updatedAt = Date.now();
-
-  await bus.save();
-  res.json(bus.seats);
 });
 
 // Active passenger-selected destinations for the on-bus GPS alert device.

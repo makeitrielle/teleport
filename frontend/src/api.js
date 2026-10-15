@@ -26,13 +26,18 @@ export async function request(path, options = {}) {
 }
 
 let kioskBusRequest;
+let staffBusRequest;
 
 export const api = {
   // ---- health ----
   health: () => request("/health"),
 
   // ---- buses (generic collection - used by the super admin dashboard) ----
-  getBuses: () => request("/buses"),
+  getBuses: () => {
+    if (!staffBusRequest)
+      staffBusRequest = request("/buses").finally(() => { staffBusRequest = null; });
+    return staffBusRequest;
+  },
   // Share in-flight refreshes so slow responses cannot stack up or arrive out of order.
   getKioskBuses: () => {
     if (!kioskBusRequest)

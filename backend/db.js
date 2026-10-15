@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Passenger from "./models/Passenger.js";
 import Ticket from "./models/Ticket.js";
 import { restoreSeatReservations } from "./reservationSeats.js";
+import { flushSensorEvents } from "./seatTelemetry.js";
 import { WALKUP_TICKET_TTL_MS } from "./ticketValidity.js";
 
 export async function backfillLegacyTicketExpiry() {
@@ -87,6 +88,7 @@ export async function connectDB() {
   }
   await backfillLegacyTicketExpiry();
   await restoreSeatReservations();
+  await flushSensorEvents();
   console.log(
     "[db] connected to MongoDB; seat reservations restored from active tickets",
   );

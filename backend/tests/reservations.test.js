@@ -1151,6 +1151,11 @@ test("walk-up locks require fresh physical availability", async () => {
   );
   assert.equal((await sensorReading("available")).status, 200);
   // Standing up alone must not sell an active passenger's seat again.
+  assert.equal((await publicSeat()).displayState, "occupied");
+  await Bus.updateOne(
+    { _id: third._id },
+    { $set: { "seats.0.occupiedHoldUntil": Date.now() - 1 } },
+  );
   assert.equal((await publicSeat()).displayState, "reserved");
   const connected = await http("/connect-ticket", {
     data: { reference: issued.body.qrCode },

@@ -1,5 +1,6 @@
 import express from "express";
 import crypto from "node:crypto";
+import mongoose from "mongoose";
 import Ticket from "../models/Ticket.js";
 import Bus from "../models/Bus.js";
 import Trip from "../models/Trip.js";
@@ -14,8 +15,11 @@ import {
 } from "../security.js";
 import { audit } from "../models/Activity.js";
 import { canUseSeat, isSeatMonitored } from "../../shared/seatPolicy.js";
-import { withReservationStatus } from "../reservationSeats.js";
-import { WALKUP_TICKET_TTL_MS } from "../ticketValidity.js";
+import {
+  withReservationStatus,
+  releaseTicketSeat,
+} from "../reservationSeats.js";
+import { WALKUP_TICKET_TTL_MS, ticketIsEligible } from "../ticketValidity.js";
 const router = express.Router();
 router.get("/", requireAuth, async (req, res) => {
   const filter =
@@ -114,6 +118,15 @@ async function issueTicket(req, res, selfService) {
     return res.status(400).json({ error: "A valid drop-off pin is required." });
   if (!isSeatMonitored(bus, seatId))
     return res.status(409).json({ error: "Seat sensor is unavailable." });
+  const previousAllocation = bus.seats.find(
+    (s) => s.id === Number(seatId),
+  )?.allocationTicketId;
+  if (previousAllocation) {
+    const previousTicket = await Ticket.findById(previousAllocation);
+    if (previousTicket && !ticketIsEligible(previousTicket))
+      await releaseTicketSeat(previousTicket);
+  }
+  const ticketId = new mongoose.Types.ObjectId();
   const locked = await Bus.findOneAndUpdate(
     {
       _id: busId,
@@ -123,6 +136,7 @@ async function issueTicket(req, res, selfService) {
           status: "available",
           sensor: "ok",
           occupancy: "available",
+          occupiedHoldUntil: { $not: { $gt: Date.now() } },
           sensorUpdatedAt: {
             $gte: Date.now() - 90000,
             $lte: Date.now() + 30000,
@@ -130,7 +144,12 @@ async function issueTicket(req, res, selfService) {
         },
       },
     },
-    { $set: { "seats.$.status": "booked" } },
+    {
+      $set: {
+        "seats.$.status": "booked",
+        "seats.$.allocationTicketId": ticketId,
+      },
+    },
     { new: true },
   );
   if (!locked)
@@ -141,6 +160,7 @@ async function issueTicket(req, res, selfService) {
   try {
     const printToken = crypto.randomBytes(32).toString("hex");
     const ticket = await Ticket.create({
+      _id: ticketId,
       busId,
       seatId: Number(seatId),
       passengerType,
@@ -173,8 +193,18 @@ async function issueTicket(req, res, selfService) {
   } catch (err) {
     if (!saved)
       await Bus.updateOne(
-        { _id: busId, "seats.id": Number(seatId) },
-        { $set: { "seats.$.status": "available" } },
+        {
+          _id: busId,
+          seats: {
+            $elemMatch: { id: Number(seatId), allocationTicketId: ticketId },
+          },
+        },
+        {
+          $set: {
+            "seats.$.status": "available",
+            "seats.$.allocationTicketId": null,
+          },
+        },
       );
     throw err;
   }
@@ -193,11 +223,7 @@ router.patch("/:id", requireStaff, guardId, async (req, res) => {
     return res
       .status(409)
       .json({ error: "Ticket not found or no longer active." });
-  if (!ticket.tripId)
-    await Bus.updateOne(
-      { _id: ticket.busId, "seats.id": ticket.seatId },
-      { $set: { "seats.$.status": "available" } },
-    );
+  await releaseTicketSeat(ticket);
   await audit(req, "ticket." + req.body.status, "success", {
     ticketId: ticket._id,
     busId: ticket.busId,

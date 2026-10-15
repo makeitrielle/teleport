@@ -1,4 +1,7 @@
-import { withReservationStatus } from "../reservationSeats.js";
+import {
+  withReservationStatus,
+  releaseTicketSeat,
+} from "../reservationSeats.js";
 import { ticketIsEligible } from "../ticketValidity.js";
 import express from "express";
 import crypto from "node:crypto";
@@ -245,11 +248,14 @@ router.patch("/trips/:id", requireStaff, guardId, async (req, res) => {
     return res.status(400).json({ error: "Arrival must be after departure." });
   if (req.body.status) trip.status = req.body.status;
   await trip.save();
-  if (trip.status === "cancelled" || trip.status === "completed")
+  if (trip.status === "cancelled" || trip.status === "completed") {
+    const ending = await Ticket.find({ tripId: trip._id, status: "active" });
     await Ticket.updateMany(
       { tripId: trip._id, status: "active" },
       { $set: { status: trip.status === "cancelled" ? "cancelled" : "used" } },
     );
+    for (const ticket of ending) await releaseTicketSeat(ticket);
+  }
   // Update ticket copies so receipts and expiry follow authorized timetable changes.
   await Ticket.updateMany(
     { tripId: trip._id, status: "active" },
@@ -370,11 +376,7 @@ router.post(
       return res
         .status(409)
         .json({ error: "Reservation status changed. Refresh and try again." });
-    if (!ticket.tripId)
-      await Bus.updateOne(
-        { _id: ticket.busId, "seats.id": ticket.seatId },
-        { $set: { "seats.$.status": "available" } },
-      );
+    await releaseTicketSeat(ticket);
     await audit(req, "reservation.cancelled", "success", {
       ticketId: ticket._id,
       passengerId: ticket.passengerId,
@@ -452,11 +454,7 @@ router.post(
       return res.status(409).json({
         error: "Ticket is already used, cancelled, expired, or invalid.",
       });
-    if (!ticket.tripId)
-      await Bus.updateOne(
-        { _id: ticket.busId, "seats.id": ticket.seatId },
-        { $set: { "seats.$.status": "available" } },
-      );
+    await releaseTicketSeat(ticket);
     await audit(req, "ticket.completed", "success", {
       ticketId: ticket._id,
       reference: ticket.bookingReference,
@@ -504,6 +502,11 @@ router.get("/activity", requireAuth, async (req, res) => {
     req.auth.role === "passenger" ? { passengerId: req.auth.userId } : {};
   for (const key of ["event", "outcome", "reference", "busId"])
     if (req.query[key]) filter[key] = req.query[key];
+  if (req.query.seatId) {
+    if (!/^[1-9]\d*$/.test(req.query.seatId))
+      return res.status(400).json({ error: "Invalid seat number." });
+    filter.seatId = Number(req.query.seatId);
+  }
   if (req.query.busId && !isObjectId(req.query.busId)) {
     const bus = await Bus.findOne({ busId: req.query.busId }).select("_id");
     if (!bus) return res.json([]);
@@ -575,6 +578,7 @@ router.get("/tracking", requireAuth, async (req, res) => {
   ).lean();
   const buses = await withReservationStatus(
     passenger ? records.filter((b) => gpsOnline(b)) : records,
+    { staff: !passenger },
   );
   res.json(
     buses.map((b) => ({
@@ -593,12 +597,29 @@ router.get("/tracking", requireAuth, async (req, res) => {
       tripStatus: b.status,
       etaMin: b.etaMin,
       seats: (b.seats || []).map(
-        ({ id, occupancy, sensor, sensorUpdatedAt, status }) => ({
+        ({
           id,
           occupancy,
           sensor,
           sensorUpdatedAt,
           status,
+          displayState,
+          occupiedHoldUntil,
+          occupancyChangedAt,
+          lastOccupiedAt,
+          occupancyWarning,
+          occupantVerified,
+        }) => ({
+          id,
+          occupancy,
+          sensor,
+          sensorUpdatedAt,
+          status,
+          displayState,
+          occupiedHoldUntil,
+          occupancyChangedAt,
+          lastOccupiedAt,
+          ...(!passenger ? { occupancyWarning, occupantVerified } : {}),
         }),
       ),
     })),

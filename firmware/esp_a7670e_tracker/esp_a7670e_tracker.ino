@@ -41,6 +41,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <time.h>
+#include <sys/time.h>
 #include <TinyGsmClient.h>
 #include <ArduinoJson.h>
 #ifndef TINY_GSM_FORK_LIBRARY
@@ -147,6 +148,7 @@ struct SeatMailbox {
   bool online;
   uint32_t revision;
   unsigned long lastReceivedAt;
+  uint64_t observedAt;
 };
 SeatMailbox seatMailbox[NUM_SEATS] = {};
 portMUX_TYPE seatMailboxMux = portMUX_INITIALIZER_UNLOCKED;
@@ -339,6 +341,10 @@ void acceptSeatLine(char* line) {
   else return;
 
   const uint8_t index = static_cast<uint8_t>(seatId - 1);
+  struct timeval observedTime;
+  gettimeofday(&observedTime, nullptr);
+  const uint64_t observedAt = observedTime.tv_sec >= 1704067200
+    ? static_cast<uint64_t>(observedTime.tv_sec) * 1000 + observedTime.tv_usec / 1000 : 0;
   portENTER_CRITICAL(&seatMailboxMux);
   const bool changed = seatMailbox[index].revision == 0 ||
                        seatMailbox[index].occupied != occupied ||
@@ -346,6 +352,7 @@ void acceptSeatLine(char* line) {
   seatMailbox[index].occupied = occupied;
   seatMailbox[index].online = online;
   seatMailbox[index].lastReceivedAt = millis();
+  seatMailbox[index].observedAt = observedAt;
   if (changed) ++seatMailbox[index].revision;
   portEXIT_CRITICAL(&seatMailboxMux);
 }
@@ -393,11 +400,13 @@ void processPendingSeat() {
     bool online;
     uint32_t revision;
     unsigned long receivedAt;
+    uint64_t observedAt;
     portENTER_CRITICAL(&seatMailboxMux);
     revision = seatMailbox[index].revision;
     occupied = seatMailbox[index].occupied;
     online = seatMailbox[index].online;
     receivedAt = seatMailbox[index].lastReceivedAt;
+    observedAt = seatMailbox[index].observedAt;
     portEXIT_CRITICAL(&seatMailboxMux);
     if (revision == 0) continue;
     const unsigned long now = millis();
@@ -410,6 +419,11 @@ void processPendingSeat() {
                      now - lastSeatUploadedAt[index] < SEAT_REFRESH_MS)) continue;
 
     String body = String("{\"busId\":\"") + BUS_ID + "\",\"seatId\":" + String(index + 1);
+    if (observedAt) {
+      char timestamp[24];
+      snprintf(timestamp, sizeof(timestamp), "%llu", static_cast<unsigned long long>(observedAt));
+      body += String(",\"observedAt\":") + timestamp;
+    }
     if (online) {
       body += String(",\"status\":\"") + (occupied ? "booked" : "available") + "\"}";
     } else {
