@@ -137,4 +137,12 @@ The LILYGO should print successful communication/HTTP responses.
 
 Confirm that changing a physical seat sensor produces the corresponding seat-status change on the website.
 
+The ESP32 uploads the initial readings and subsequent occupancy/online-state
+changes. Repeated identical Mega readings do not queue new change uploads.
+Unchanged online seats receive a quiet refresh after 45 seconds because the
+website considers readings stale after 90 seconds. Refreshes require a Mega
+reading within the last 30 seconds; a disconnected Mega cannot keep cached
+seats looking live. Occupancy changes have priority over these refreshes.
+Failed requests remain pending and retry automatically.
+
 See [WIRING.md](WIRING.md) for the full pin-by-pin wiring diagram and power notes.

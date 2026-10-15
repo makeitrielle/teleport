@@ -1779,7 +1779,7 @@ function Walkup({ run, open, close }) {
             }),
         );
     poll();
-    const timer = setInterval(poll, 10000);
+    const timer = setInterval(poll, 2000);
     return () => {
       live = false;
       clearInterval(timer);
@@ -2452,7 +2452,7 @@ function PassengerSeats({ run }) {
             }),
         );
     poll();
-    const timer = setInterval(poll, 10000);
+    const timer = setInterval(poll, 2000);
     return () => {
       active = false;
       clearInterval(timer);
@@ -2476,22 +2476,56 @@ function PassengerSeats({ run }) {
             <p>
               {bus.from} → {bus.to}
             </p>
-            <div className="seat-grid">
-              {(bus.seats || []).map((s) => (
-                <div
-                  className={`seat seat-${seatDisplayState(bus, s)}`}
-                  key={s.id}
-                >
-                  <Armchair size={22} />
-                  <strong>Seat {s.id}</strong>
-                  <span>{seatStateLabels[seatDisplayState(bus, s)]}</span>
-                </div>
-              ))}
+            <p className="passenger-priority-note">
+              First row: PWD and senior passengers only.
+            </p>
+            <div className="kiosk-seat-legend passenger-seat-legend">
+              <span>Available</span>
+              <span>Reserved</span>
+              <span>Occupied</span>
+              <span>Sensor unavailable</span>
+            </div>
+            <div className="passenger-bus-layout">
+              <div className="passenger-bus-front">
+                <Bus size={20} /> FRONT
+              </div>
+              <div
+                className="passenger-seat-layout"
+                role="group"
+                aria-label={`${bus.busId} seat availability, front to rear`}
+              >
+                {kioskSeatLayout(bus).map((s, i) => {
+                  const state = seatDisplayState(bus, s);
+                  const priority = isPrioritySeat(bus, s.id);
+                  return (
+                    <div
+                      key={s.id}
+                      className={`passenger-seat passenger-seat-${state} ${priority ? "passenger-seat-priority" : ""}`}
+                      style={{
+                        gridRow: i < 55 ? Math.floor(i / 5) + 1 : 12,
+                        gridColumn:
+                          i < 55
+                            ? i % 5 < 3
+                              ? (i % 5) + 1
+                              : (i % 5) + 2
+                            : i - 54,
+                      }}
+                      role="img"
+                      aria-label={`Seat ${s.id}, ${seatStateLabels[state]}${priority ? ", PWD and senior only" : ""}`}
+                      title={`Seat ${s.id}: ${seatStateLabels[state]}${priority ? " · Priority" : ""}`}
+                    >
+                      <Armchair size={22} />
+                      <strong>{s.id}</strong>
+                      {priority && <small>Priority</small>}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
             <p>
               A kiosk ticket reserves the seat. It changes to occupied when its
               sensor detects someone seated. Both states prevent another
-              booking. Seat information refreshes every 10 seconds.
+              booking. Seat information refreshes every 2 seconds.
             </p>
           </article>
         ))
@@ -3066,7 +3100,7 @@ function NearbyPassengerMap({ items, nearbyAlerts }) {
         </aside>
       </div>
       <p className="nearby-route-note">
-        Updates every 5 seconds. Buses disappear when their GPS is stale. Seat
+        Updates every 2 seconds. Buses disappear when their GPS is stale. Seat
         availability uses sensor readings and reservations.
       </p>
     </section>
@@ -3078,8 +3112,11 @@ function Tracking({ run, refresh, passenger = false, nearby }) {
   useEffect(() => {
     if (passenger) return;
     let active = true;
-    const poll = () =>
-      request("/tracking")
+    let pending = false;
+    const poll = () => {
+      if (pending) return;
+      pending = true;
+      return request("/tracking")
         .then((v) => active && setItems(v))
         .catch(
           (e) =>
@@ -3087,13 +3124,17 @@ function Tracking({ run, refresh, passenger = false, nearby }) {
             run(async () => {
               throw e;
             }),
-        );
+        )
+        .finally(() => {
+          pending = false;
+        });
+    };
     poll();
     if (paused)
       return () => {
         active = false;
       };
-    const timer = setInterval(poll, 10000);
+    const timer = setInterval(poll, 2000);
     return () => {
       active = false;
       clearInterval(timer);

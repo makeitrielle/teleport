@@ -502,6 +502,75 @@ dd {
   grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
   gap: 10px;
 }
+.passenger-priority-note {
+  text-align: center;
+  color: var(--brand);
+}
+.passenger-seat-legend {
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.passenger-bus-layout {
+  width: 100%;
+  max-width: 420px;
+  margin: 16px auto;
+  padding: 16px 10px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--surface);
+  box-sizing: border-box;
+}
+.passenger-bus-front {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.passenger-seat-layout {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px 4px;
+}
+.passenger-seat {
+  min-width: 0;
+  min-height: 46px;
+  padding: 5px 0;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 11px;
+}
+.passenger-seat strong {
+  font-size: 12px;
+}
+.passenger-seat small {
+  font-size: 8px;
+}
+.passenger-seat-available {
+  color: #1d56b3;
+  background: #e3ecff;
+}
+.passenger-seat-reserved {
+  color: #855b08;
+  background: #fff0cb;
+}
+.passenger-seat-occupied {
+  color: #c73232;
+  background: #fce9e5;
+}
+.passenger-seat-offline {
+  color: var(--muted);
+}
+.passenger-seat-priority {
+  outline: 1px solid #b69acb;
+  outline-offset: -1px;
+}
 .seat {
   display: flex;
   flex-direction: column;

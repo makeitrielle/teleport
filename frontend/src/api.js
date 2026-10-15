@@ -25,13 +25,22 @@ export async function request(path, options = {}) {
   return body;
 }
 
+let kioskBusRequest;
+
 export const api = {
   // ---- health ----
   health: () => request("/health"),
 
   // ---- buses (generic collection - used by the super admin dashboard) ----
   getBuses: () => request("/buses"),
-  getKioskBuses: () => request("/tickets/kiosk/buses"),
+  // Share in-flight refreshes so slow responses cannot stack up or arrive out of order.
+  getKioskBuses: () => {
+    if (!kioskBusRequest)
+      kioskBusRequest = request("/tickets/kiosk/buses").finally(() => {
+        kioskBusRequest = null;
+      });
+    return kioskBusRequest;
+  },
   createKioskTicket: (data) => request("/tickets/kiosk", { method: "POST", body: JSON.stringify(data) }),
   createBus: (data) => request("/buses", { method: "POST", body: JSON.stringify(data) }),
   updateBus: (id, data) => request(`/buses/${id}`, { method: "PATCH", body: JSON.stringify(data) }),

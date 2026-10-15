@@ -145,10 +145,17 @@ constexpr uint8_t NUM_SEATS = 61;
 struct SeatMailbox {
   bool occupied;
   bool online;
-  uint32_t revision;};
+  uint32_t revision;
+  unsigned long lastReceivedAt;
+};
 SeatMailbox seatMailbox[NUM_SEATS] = {};
 portMUX_TYPE seatMailboxMux = portMUX_INITIALIZER_UNLOCKED;
 uint32_t deliveredRevision[NUM_SEATS] = {};
+unsigned long lastSeatUploadedAt[NUM_SEATS] = {};
+// The website marks readings stale after 90 seconds. Refresh unchanged seats
+// only for liveness, and only while the Mega's 20-second heartbeat is arriving.
+constexpr unsigned long SEAT_REFRESH_MS = 45000;
+constexpr unsigned long MEGA_READING_MAX_AGE_MS = 30000;
 uint8_t nextSeatToSend = 0;
 unsigned long seatRetryAt = 0;
 
@@ -333,9 +340,13 @@ void acceptSeatLine(char* line) {
 
   const uint8_t index = static_cast<uint8_t>(seatId - 1);
   portENTER_CRITICAL(&seatMailboxMux);
+  const bool changed = seatMailbox[index].revision == 0 ||
+                       seatMailbox[index].occupied != occupied ||
+                       seatMailbox[index].online != online;
   seatMailbox[index].occupied = occupied;
   seatMailbox[index].online = online;
-  ++seatMailbox[index].revision;
+  seatMailbox[index].lastReceivedAt = millis();
+  if (changed) ++seatMailbox[index].revision;
   portEXIT_CRITICAL(&seatMailboxMux);
 }
 void serialReaderTask(void*) {
@@ -374,20 +385,29 @@ void processPendingSeat() {
   if (WiFi.status() != WL_CONNECTED) return;
   if (static_cast<long>(millis() - seatRetryAt) < 0) return;
 
-  // Send connected sensors before the initial unwired-seat reports.
-  for (uint8_t pass = 0; pass < 2; ++pass) {
+  // Changes go first, then offline reports, then necessary liveness refreshes.
+  for (uint8_t pass = 0; pass < 3; ++pass) {
   for (uint8_t offset = 0; offset < NUM_SEATS; ++offset) {
     const uint8_t index = (nextSeatToSend + offset) % NUM_SEATS;
     bool occupied;
     bool online;
     uint32_t revision;
+    unsigned long receivedAt;
     portENTER_CRITICAL(&seatMailboxMux);
     revision = seatMailbox[index].revision;
     occupied = seatMailbox[index].occupied;
     online = seatMailbox[index].online;
+    receivedAt = seatMailbox[index].lastReceivedAt;
     portEXIT_CRITICAL(&seatMailboxMux);
-    if (revision == 0 || revision == deliveredRevision[index]) continue;
-    if (online != (pass == 0)) continue;
+    if (revision == 0) continue;
+    const unsigned long now = millis();
+    // Never keep a disconnected Mega's cached readings looking live.
+    if (online && now - receivedAt > MEGA_READING_MAX_AGE_MS) continue;
+    const bool changed = revision != deliveredRevision[index];
+    if (pass == 0 && (!online || !changed)) continue;
+    if (pass == 1 && (online || !changed)) continue;
+    if (pass == 2 && (!online || changed ||
+                     now - lastSeatUploadedAt[index] < SEAT_REFRESH_MS)) continue;
 
     String body = String("{\"busId\":\"") + BUS_ID + "\",\"seatId\":" + String(index + 1);
     if (online) {
@@ -399,8 +419,10 @@ void processPendingSeat() {
     const bool ok = sendApiRequest("POST", String(API_BASE_PATH) + "/bus/seats", body);
     if (ok) {
       deliveredRevision[index] = revision;
+      lastSeatUploadedAt[index] = millis();
       nextSeatToSend = (index + 1) % NUM_SEATS;
-      if (online) SerialMon.printf("Seat %u -> %s (sent)\n", index + 1, occupied ? "booked" : "available");
+      if (online && changed) SerialMon.printf("Seat %u -> %s (sent)\n", index + 1, occupied ? "occupied" : "available");
+      else if (online) { /* Quiet liveness refresh; no occupancy change. */ }
       else SerialMon.printf("Seat %u -> OFFLINE (sent)\n", index + 1);
     } else {
       seatRetryAt = millis() + 1000;

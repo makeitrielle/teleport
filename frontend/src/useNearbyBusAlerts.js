@@ -50,7 +50,7 @@ export function useNearbyBusAlerts(enabled, userId) {
       }
     };
     poll();
-    const timer = setInterval(poll, 5000);
+    const timer = setInterval(poll, 2000);
     return () => {
       active = false;
       clearInterval(timer);
