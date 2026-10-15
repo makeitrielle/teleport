@@ -2,6 +2,19 @@ import mongoose from "mongoose";
 import Passenger from "./models/Passenger.js";
 import Ticket from "./models/Ticket.js";
 import { restoreSeatReservations } from "./reservationSeats.js";
+import { WALKUP_TICKET_TTL_MS } from "./ticketValidity.js";
+
+export async function backfillLegacyTicketExpiry() {
+  const result = await Ticket.updateMany(
+    { tripId: null, expiresAt: null, createdAt: { $type: "date" } },
+    [{ $set: { expiresAt: { $add: ["$createdAt", WALKUP_TICKET_TTL_MS] } } }],
+  );
+  if (result.modifiedCount)
+    console.log(
+      "[db] restored legacy kiosk ticket deadlines:",
+      result.modifiedCount,
+    );
+}
 
 export async function removeLegacyPhoneUniqueness(
   collection = Passenger.collection,
@@ -72,6 +85,7 @@ export async function connectDB() {
       { unique: true, sparse: true },
     );
   }
+  await backfillLegacyTicketExpiry();
   await restoreSeatReservations();
   console.log(
     "[db] connected to MongoDB; seat reservations restored from active tickets",

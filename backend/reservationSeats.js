@@ -1,12 +1,12 @@
 import { monitoredSeatIds, seatDisplayState } from "../shared/seatPolicy.js";
 import Ticket from "./models/Ticket.js";
 import Bus from "./models/Bus.js";
+import { activeTicketFilter } from "./ticketValidity.js";
 // Reservations and physical occupancy are independent. Both monitors use this view.
 export async function withReservationStatus(buses) {
   const reservations = await Ticket.find({
     busId: { $in: buses.map((bus) => bus._id) },
-    status: "active",
-    $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
+    ...activeTicketFilter(),
   })
     .select("busId seatId")
     .lean();

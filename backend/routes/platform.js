@@ -1,4 +1,5 @@
 import { withReservationStatus } from "../reservationSeats.js";
+import { ticketIsEligible } from "../ticketValidity.js";
 import express from "express";
 import crypto from "node:crypto";
 import Bus from "../models/Bus.js";
@@ -27,10 +28,7 @@ import {
 
 const router = express.Router();
 export function reservationIsEligible(ticket, now = Date.now()) {
-  return (
-    ticket.status === "active" &&
-    (!ticket.expiresAt || new Date(ticket.expiresAt).getTime() > now)
-  );
+  return ticketIsEligible(ticket, now);
 }
 export function ownsTicket(auth, ticket) {
   return Boolean(

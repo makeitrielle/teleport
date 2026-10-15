@@ -15,6 +15,7 @@ import {
 import { audit } from "../models/Activity.js";
 import { canUseSeat, isSeatMonitored } from "../../shared/seatPolicy.js";
 import { withReservationStatus } from "../reservationSeats.js";
+import { WALKUP_TICKET_TTL_MS } from "../ticketValidity.js";
 const router = express.Router();
 router.get("/", requireAuth, async (req, res) => {
   const filter =
@@ -158,7 +159,7 @@ async function issueTicket(req, res, selfService) {
       bookingReference:
         "SM-" + crypto.randomBytes(8).toString("hex").toUpperCase(),
       printTokenHash: hashToken(printToken),
-      expiresAt: new Date(Date.now() + 86400000),
+      expiresAt: new Date(Date.now() + WALKUP_TICKET_TTL_MS),
     });
     saved = true;
     await audit(req, "ticket.issued", "success", {

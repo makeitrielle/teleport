@@ -19,7 +19,10 @@ import Notification from "../models/Notification.js";
 import { Activity } from "../models/Activity.js";
 import { proximityState, haversineMeters } from "../../shared/proximity.js";
 import { attachPrintAgent } from "../printAgent.js";
-import { removeLegacyPhoneUniqueness } from "../db.js";
+import {
+  removeLegacyPhoneUniqueness,
+  backfillLegacyTicketExpiry,
+} from "../db.js";
 import { restoreSeatReservations } from "../reservationSeats.js";
 
 process.env.TELEPORT_TEST_MODE = "true";
@@ -1041,6 +1044,16 @@ test("startup restores only active unexpired tickets and clears phantom reservat
       expiresAt: new Date(timestamp + (expired ? -1000 : 3600000)),
     });
   }
+  const legacyCreatedAt = new Date(timestamp - 3 * 86400000);
+  const legacy = await Ticket.create({
+    busId: fixture._id,
+    seatId: 1,
+    status: "active",
+    from: fixture.from,
+    to: fixture.to,
+    qrCode: hashToken("old-no-expiry-ticket"),
+    createdAt: legacyCreatedAt,
+  });
   const feed = await http("/tickets/kiosk/buses", { cookie: null });
   const visible = feed.body.find((b) => b._id === String(fixture._id));
   assert.deepEqual(
@@ -1054,6 +1067,22 @@ test("startup restores only active unexpired tickets and clears phantom reservat
       "occupied",
     ],
   );
+  assert.equal(
+    (
+      await http("/verify", {
+        cookie: null,
+        data: { reference: legacy.qrCode },
+      })
+    ).status,
+    409,
+  );
+  await backfillLegacyTicketExpiry();
+  const migrated = await Ticket.findById(legacy._id);
+  assert.equal(
+    migrated.expiresAt.getTime(),
+    legacyCreatedAt.getTime() + 86400000,
+  );
+  assert.equal(migrated.status, "active"); // Retain the historical record.
   await restoreSeatReservations();
   await restoreSeatReservations();
   const stored = await Bus.findById(fixture._id);
@@ -1063,7 +1092,7 @@ test("startup restores only active unexpired tickets and clears phantom reservat
   );
   assert.equal(stored.seats[5].occupancy, "occupied");
   assert.ok(stored.seats.every((s) => s.sensorUpdatedAt === timestamp));
-  assert.equal(await Ticket.countDocuments({ busId: fixture._id }), 4);
+  assert.equal(await Ticket.countDocuments({ busId: fixture._id }), 5);
 });
 
 test("walk-up locks require fresh physical availability", async () => {

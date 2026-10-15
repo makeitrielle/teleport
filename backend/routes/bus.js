@@ -7,6 +7,7 @@
 import express from "express";
 import Bus from "../models/Bus.js";
 import Ticket from "../models/Ticket.js";
+import { activeTicketFilter } from "../ticketValidity.js";
 import { voiceClipFor } from "../voiceClips.js";
 import { authenticateDevice, updateProximity } from "../tracking.js";
 
@@ -160,7 +161,7 @@ router.get("/dropoffs", async (req, res) => {
   if (!bus) return res.status(404).json({ error: "No bus is configured yet" });
   const tickets = await Ticket.find({
     busId: bus._id,
-    status: "active",
+    ...activeTicketFilter(),
     dropoffAlerted: false,
     "dropoffLocation.lat": { $type: "number" },
     "dropoffLocation.lon": { $type: "number" },
