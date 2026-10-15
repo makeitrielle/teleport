@@ -8,3 +8,4 @@ front/dist/
 firmware/**/device_config.h
 .test-cache/
 .build/
+backend/print-agent/logs/

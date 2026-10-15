@@ -58,7 +58,7 @@ function qrCommands(value) {
   ]);
 }
 
-function makeReceipt(ticket, cutAfterPrint) {
+export function makeReceipt(ticket, cutAfterPrint = false) {
   const chunks = [
     Buffer.from([0x1b, 0x40, 0x1b, 0x74, 0x00]), // initialize, CP437
     Buffer.from([0x1b, 0x61, 0x01, 0x1b, 0x45, 0x01, 0x1d, 0x21, 0x01]),
@@ -167,12 +167,44 @@ public static class TeleportRawPrinter {
   }
 }`;
 
+export async function checkPrinter() {
+  if (process.platform !== "win32")
+    throw new Error("The print agent must run on the Windows kiosk computer.");
+  const name = Buffer.from(
+    process.env.PRINTER_NAME || "XP-58",
+    "utf8",
+  ).toString("base64");
+  const script = `$ErrorActionPreference='Stop'; $n=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${name}')); $p=Get-Printer | Where-Object { $_.Name -ceq $n }; if (!$p) { Write-Output 'PRINTER_MISSING'; exit 2 }; if ([string]$p.PrinterStatus -match 'Offline|Error|PaperOut|Paused') { Write-Output 'PRINTER_NOT_READY'; exit 3 }; Write-Output 'PRINTER_READY'`;
+  try {
+    const { stdout } = await execFileAsync(
+      "powershell.exe",
+      ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script],
+      { windowsHide: true, timeout: 5_000 },
+    );
+    if (!stdout.includes("PRINTER_READY")) throw new Error();
+  } catch (error) {
+    if (error.stdout?.includes("PRINTER_MISSING"))
+      throw new Error(
+        "Thermal printer is not installed or PRINTER_NAME does not match its Windows name.",
+      );
+    if (error.stdout?.includes("PRINTER_NOT_READY"))
+      throw new Error(
+        "Thermal printer is paused, offline, out of paper, or reports an error. Check the Windows print queue.",
+      );
+    throw new Error(
+      "Cannot read the Windows printer status. Check the Print Spooler service and printer driver.",
+    );
+  }
+}
+
 export async function printTicket(ticket) {
   if (process.platform !== "win32")
     throw new Error(
       "The Tele-port print agent must run on the Windows kiosk computer.",
     );
   const printerName = process.env.PRINTER_NAME || "XP-58";
+  // Fail before sending any bytes so a missing printer permits a safe retry.
+  await checkPrinter();
   const cutAfterPrint = process.env.CUT_AFTER_PRINT === "true";
   const bytes = makeReceipt(ticket, cutAfterPrint).toString("base64");
   const encodedName = Buffer.from(printerName, "utf8").toString("base64");
@@ -189,7 +221,7 @@ export async function printTicket(ticket) {
         "-Command",
         script,
       ],
-      { windowsHide: true, timeout: 20_000, maxBuffer: 1_000_000 },
+      { windowsHide: true, timeout: 12_000, maxBuffer: 1_000_000 },
     );
     if (!stdout.includes("PRINT_ACCEPTED"))
       throw new Error("Windows did not confirm the raw print job.");

@@ -24,7 +24,7 @@ constexpr uint8_t ONLINE_SENSOR_COUNT = 5;
 constexpr uint8_t NUM_MUXES = 4;
 
 constexpr uint8_t MUX_SELECT_PINS[4] = {
-  22, 23, 24, 25
+  26, 27, 28, 29
 };
 
 constexpr uint8_t MUX_SIG_PINS[NUM_MUXES] = {
@@ -33,7 +33,7 @@ constexpr uint8_t MUX_SIG_PINS[NUM_MUXES] = {
 
 // Give the mux output time to settle after changing address, then use
 // a majority vote to reject brief transitions and contact noise.
-constexpr unsigned long DEBOUNCE_MS = 180;
+constexpr unsigned long DEBOUNCE_MS = 100;
 constexpr unsigned int MUX_SETTLE_US = 300;
 constexpr unsigned int SAMPLE_GAP_US = 100;
 constexpr uint8_t CHANNEL_SAMPLE_COUNT = 7;

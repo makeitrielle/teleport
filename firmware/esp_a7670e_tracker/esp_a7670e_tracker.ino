@@ -153,6 +153,8 @@ uint8_t nextSeatToSend = 0;
 unsigned long seatRetryAt = 0;
 
 void serialReaderTask(void*);
+void seatUploadTask(void*);
+bool seatUploadTaskReady = false;
 void processPendingSeat();
 void checkDropoffAlerts(float lat, float lon);
 bool requestDropoffs(String& response);
@@ -217,6 +219,11 @@ void setup() {
   lastModemAttempt = millis() - 30000;
   maintainGps();
   connectWifi();
+  seatUploadTaskReady = xTaskCreate(seatUploadTask, "seatUpload", 12288,
+                                   nullptr, 1, nullptr) == pdPASS;
+  if (!seatUploadTaskReady) {
+    SerialMon.println("Seat upload task unavailable; using main loop.");
+  }
 
 }
 
@@ -232,8 +239,7 @@ void loop() {
     if (gpsEnabled) checkGpsAndUpdate();
   }
 
-  // GPS/drop-off alerts have priority over the queued seat telemetry.
-  processPendingSeat();
+  if (!seatUploadTaskReady) processPendingSeat();
 }
 
 // ================= MODEM POWER-ON =================
@@ -356,10 +362,20 @@ void serialReaderTask(void*) {
   }
 }
 
+// Keep HTTPS seat uploads independent of blocking modem/GPS operations.
+void seatUploadTask(void*) {
+  for (;;) {
+    processPendingSeat();
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+}
+
 void processPendingSeat() {
   if (WiFi.status() != WL_CONNECTED) return;
   if (static_cast<long>(millis() - seatRetryAt) < 0) return;
 
+  // Send connected sensors before the initial unwired-seat reports.
+  for (uint8_t pass = 0; pass < 2; ++pass) {
   for (uint8_t offset = 0; offset < NUM_SEATS; ++offset) {
     const uint8_t index = (nextSeatToSend + offset) % NUM_SEATS;
     bool occupied;
@@ -371,6 +387,7 @@ void processPendingSeat() {
     online = seatMailbox[index].online;
     portEXIT_CRITICAL(&seatMailboxMux);
     if (revision == 0 || revision == deliveredRevision[index]) continue;
+    if (online != (pass == 0)) continue;
 
     String body = String("{\"busId\":\"") + BUS_ID + "\",\"seatId\":" + String(index + 1);
     if (online) {
@@ -386,10 +403,11 @@ void processPendingSeat() {
       if (online) SerialMon.printf("Seat %u -> %s (sent)\n", index + 1, occupied ? "booked" : "available");
       else SerialMon.printf("Seat %u -> OFFLINE (sent)\n", index + 1);
     } else {
-      seatRetryAt = millis() + 3000;
+      seatRetryAt = millis() + 1000;
       SerialMon.printf("Seat %u update failed; will retry.\n", index + 1);
     }
     return;
+  }
   }
 }
 // ================= GPS / PROGRESS / ETA =================

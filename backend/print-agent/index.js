@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import WebSocket from "ws";
-import { printTicket } from "./printer.js";
+import { printTicket, checkPrinter } from "./printer.js";
 
 dotenv.config({ path: fileURLToPath(new URL("./.env", import.meta.url)) });
 
@@ -26,6 +26,7 @@ function connect() {
     headers: { Authorization: `Bearer ${agentSecret}` },
     handshakeTimeout: 15_000,
   });
+  const connection = socket;
 
   socket.on("open", () => {
     retryDelay = 2_000;
@@ -44,18 +45,25 @@ function connect() {
       !job.ticket
     )
       return;
+    // Reply on the connection that delivered this job after reconnects.
+    if (connection.readyState !== WebSocket.OPEN) return;
     try {
       await printTicket(job.ticket);
-      socket.send(
-        JSON.stringify({ type: "print:result", jobId: job.jobId, ok: true }),
-      );
+      if (connection.readyState === WebSocket.OPEN)
+        connection.send(
+          JSON.stringify({
+            type: "print:result",
+            jobId: job.jobId,
+            ok: true,
+          }),
+        );
       console.log(
         `[print-agent] Receipt job accepted by ${process.env.PRINTER_NAME || "XP-58"}.`,
       );
     } catch (error) {
       console.error(`[print-agent] Print failed: ${error.message}`);
-      if (socket.readyState === WebSocket.OPEN)
-        socket.send(
+      if (connection.readyState === WebSocket.OPEN)
+        connection.send(
           JSON.stringify({
             type: "print:result",
             jobId: job.jobId,
@@ -91,4 +99,10 @@ process.on("SIGTERM", shutdown);
 console.log(
   `[print-agent] Starting Tele-port XP-58 print agent (${crypto.randomUUID().slice(0, 8)}).`,
 );
+try {
+  await checkPrinter();
+} catch (error) {
+  console.error(`[print-agent] ${error.message}`);
+  process.exit(1);
+}
 connect();

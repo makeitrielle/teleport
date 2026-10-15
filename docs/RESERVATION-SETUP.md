@@ -109,6 +109,20 @@ Keep the existing XP-58 Windows printer driver and agent. Configure `backend/pri
 npm --prefix backend run print-agent
 ```
 
+For Windows boot startup, first install the manufacturer's Windows driver and
+confirm the thermal printer appears in **Printers & scanners**. Run
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File backend/print-agent/CONFIGURE-PRINT-AGENT.ps1`
+to select its exact name and enter the same `AGENT_SECRET` as the deployed backend.
+The production WebSocket address is `wss://teleport-3qfa.onrender.com/api/printer/agent`.
+Then right-click `backend/print-agent/INSTALL-AUTOSTART.bat` and choose **Run as administrator**.
+The `TELE-PORT Print Agent` scheduled task runs as SYSTEM 20 seconds after boot,
+before sign-in, and restarts the agent after errors. Install the USB printer for
+the machine, rather than a printer shared only inside one user's session.
+Logs are in `backend/print-agent/logs/agent.log`. Keep the project folder in place.
+After changing configuration, end the task and start it again in Task Scheduler.
+To remove automatic startup, run `Unregister-ScheduledTask -TaskName 'TELE-PORT Print Agent' -Confirm:$false`
+in an Administrator PowerShell window.
+
 Print Receipt sends authenticated, one-use jobs through the existing WebSocket agent and Windows raw ESC/POS spooler. It includes branding, booking reference, full ticket number, QR, bus, route, category, departure and confirmation time. No browser print dialog is used. Agent/spooler acceptance does not prove the paper physically printed. Paper-out detection depends on the Windows driver; staff must check paper and printer health.
 
 Definite failures allow retry. A disconnected or unconfirmed job is marked uncertain to prevent accidental duplicates. Staff must inspect the physical printer, then resolve the uncertain result from the ticket screen. Already printed receipts require staff authorization to reprint. A receipt does not create a new booking or prove bus proximity. One active print agent is supported; connecting another replaces the previous agent.
