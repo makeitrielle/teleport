@@ -20,6 +20,7 @@ import { Activity } from "../models/Activity.js";
 import { proximityState, haversineMeters } from "../../shared/proximity.js";
 import { attachPrintAgent } from "../printAgent.js";
 import { removeLegacyPhoneUniqueness } from "../db.js";
+import { restoreSeatReservations } from "../reservationSeats.js";
 
 process.env.TELEPORT_TEST_MODE = "true";
 process.env.ALLOWED_ORIGINS = "http://localhost:5173";
@@ -1007,6 +1008,64 @@ test("uncertain receipt resolution requires staff and retains the booking", asyn
   );
   assert.equal((await Ticket.findById(ticket.id)).status, "active");
 });
+test("startup restores only active unexpired tickets and clears phantom reservation flags", async () => {
+  const timestamp = Date.now();
+  const fixture = await Bus.create({
+    busId: "BOOT-RESTORE-TEST",
+    name: "Boot restore test bus",
+    from: "SM Pala-Pala",
+    to: "PITX",
+    totalSeats: 6,
+    monitoredSeatIds: [1, 2, 3, 4, 5, 6],
+    seats: [1, 2, 3, 4, 5, 6].map((id) => ({
+      id,
+      status: id === 2 ? "available" : "booked",
+      occupancy: id === 6 ? "occupied" : "available",
+      sensor: "ok",
+      sensorUpdatedAt: timestamp,
+    })),
+  });
+  for (const [seatId, status, expired] of [
+    [2, "active", false],
+    [3, "used", false],
+    [4, "cancelled", false],
+    [5, "active", true],
+  ]) {
+    await Ticket.create({
+      busId: fixture._id,
+      seatId,
+      status,
+      from: fixture.from,
+      to: fixture.to,
+      qrCode: hashToken(`boot-restore-${seatId}`),
+      expiresAt: new Date(timestamp + (expired ? -1000 : 3600000)),
+    });
+  }
+  const feed = await http("/tickets/kiosk/buses", { cookie: null });
+  const visible = feed.body.find((b) => b._id === String(fixture._id));
+  assert.deepEqual(
+    visible.seats.map((s) => s.displayState),
+    [
+      "available",
+      "reserved",
+      "available",
+      "available",
+      "available",
+      "occupied",
+    ],
+  );
+  await restoreSeatReservations();
+  await restoreSeatReservations();
+  const stored = await Bus.findById(fixture._id);
+  assert.deepEqual(
+    stored.seats.map((s) => s.status),
+    ["available", "booked", "available", "available", "available", "available"],
+  );
+  assert.equal(stored.seats[5].occupancy, "occupied");
+  assert.ok(stored.seats.every((s) => s.sensorUpdatedAt === timestamp));
+  assert.equal(await Ticket.countDocuments({ busId: fixture._id }), 4);
+});
+
 test("walk-up locks require fresh physical availability", async () => {
   const deviceKey = "walkup-seat-state-test-device-only";
   const third = await Bus.create({

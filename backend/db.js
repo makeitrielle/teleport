@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Passenger from "./models/Passenger.js";
 import Ticket from "./models/Ticket.js";
+import { restoreSeatReservations } from "./reservationSeats.js";
 
 export async function removeLegacyPhoneUniqueness(
   collection = Passenger.collection,
@@ -71,5 +72,8 @@ export async function connectDB() {
       { unique: true, sparse: true },
     );
   }
-  console.log("[db] connected to MongoDB");
+  await restoreSeatReservations();
+  console.log(
+    "[db] connected to MongoDB; seat reservations restored from active tickets",
+  );
 }
